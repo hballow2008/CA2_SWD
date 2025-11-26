@@ -1,9 +1,23 @@
 const API_URL = 'http://localhost:5001/api';
 
+// Helper to get stored username (if any)
+function getStoredUsername() {
+    try {
+        const s = localStorage.getItem('currentUser');
+        if (!s) return null;
+        return JSON.parse(s).username;
+    } catch (e) {
+        return null;
+    }
+}
+
 const api = {
     getNotes: async (role = 'user') => {
         try {
-            const response = await fetch(`${API_URL}/notes?role=${role}`);
+            const username = getStoredUsername();
+            let url = `${API_URL}/notes?role=${encodeURIComponent(role)}`;
+            if (role === 'user' && username) url += `&username=${encodeURIComponent(username)}`;
+            const response = await fetch(url);
             if (!response.ok) throw new Error('Failed to fetch notes');
             return await response.json();
         } catch (error) {
@@ -14,7 +28,10 @@ const api = {
 
     getNote: async (id, role = 'user') => {
         try {
-            const response = await fetch(`${API_URL}/notes/${id}?role=${role}`);
+            const username = getStoredUsername();
+            let url = `${API_URL}/notes/${encodeURIComponent(id)}?role=${encodeURIComponent(role)}`;
+            if (role === 'user' && username) url += `&username=${encodeURIComponent(username)}`;
+            const response = await fetch(url);
             if (!response.ok) throw new Error('Failed to fetch note');
             return await response.json();
         } catch (error) {
@@ -25,10 +42,13 @@ const api = {
 
     createNote: async (title, content, role) => {
         try {
+            const username = getStoredUsername();
+            const body = { title, content, role };
+            if (role === 'user' && username) body.username = username;
             const response = await fetch(`${API_URL}/notes`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title, content, role })
+                body: JSON.stringify(body)
             });
             if (!response.ok) throw new Error('Failed to create note');
             return await response.json();
@@ -40,10 +60,13 @@ const api = {
 
     updateNote: async (id, title, content, role = 'user') => {
         try {
-            const response = await fetch(`${API_URL}/notes/${id}`, {
+            const username = getStoredUsername();
+            const body = { title, content, role };
+            if (role === 'user' && username) body.username = username;
+            const response = await fetch(`${API_URL}/notes/${encodeURIComponent(id)}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title, content, role })
+                body: JSON.stringify(body)
             });
             if (!response.ok) throw new Error('Failed to update note');
             return await response.json();
@@ -55,9 +78,10 @@ const api = {
 
     deleteNote: async (id, role = 'user') => {
         try {
-            const response = await fetch(`${API_URL}/notes/${id}?role=${role}`, {
-                method: 'DELETE'
-            });
+            const username = getStoredUsername();
+            let url = `${API_URL}/notes/${encodeURIComponent(id)}?role=${encodeURIComponent(role)}`;
+            if (role === 'user' && username) url += `&username=${encodeURIComponent(username)}`;
+            const response = await fetch(url, { method: 'DELETE' });
             if (!response.ok) throw new Error('Failed to delete note');
             return await response.json();
         } catch (error) {
@@ -68,7 +92,10 @@ const api = {
 
     searchNotes: async (query, role = 'user') => {
         try {
-            const response = await fetch(`${API_URL}/notes/search/${query}?role=${role}`);
+            const username = getStoredUsername();
+            let url = `${API_URL}/notes/search/${encodeURIComponent(query)}?role=${encodeURIComponent(role)}`;
+            if (role === 'user' && username) url += `&username=${encodeURIComponent(username)}`;
+            const response = await fetch(url);
             if (!response.ok) throw new Error('Search failed');
             return await response.json();
         } catch (error) {

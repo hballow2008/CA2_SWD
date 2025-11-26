@@ -96,7 +96,7 @@ function renderNotes(notes) {
 
     notesList.innerHTML = notes.map(note => {
         // Show action buttons if admin OR if it's the user's own note
-        const canEdit = currentRole === 'admin' || note.created_by === currentRole;
+        const canEdit = currentRole === 'admin' || (currentUser && note.created_by === currentUser.username);
         
         return `
         <div class="note-card">
