@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const sqlite3 = require('sqlite3').verbose();
+const bcrypt = require('bcryptjs');
 const app = express();
 const PORT = 5001;
 
@@ -57,6 +58,30 @@ function initializeDatabase() {
     });
 
     console.log('Database initialized successfully');
+    // Create users table and seed demo users (passwords hashed)
+    db.run(`
+      CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        role TEXT DEFAULT 'user',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    try {
+      const adminHash = bcrypt.hashSync('admin123', 10);
+      const tomHash = bcrypt.hashSync('tompass', 10);
+      const jerryHash = bcrypt.hashSync('jerrypass', 10);
+
+      db.run(`INSERT OR IGNORE INTO users (username, email, password, role) VALUES (?,?,?,?)`, ['admin', 'admin@me.com', adminHash, 'admin']);
+      db.run(`INSERT OR IGNORE INTO users (username, email, password, role) VALUES (?,?,?,?)`, ['Tom', 'tom@me.com', tomHash, 'user']);
+      db.run(`INSERT OR IGNORE INTO users (username, email, password, role) VALUES (?,?,?,?)`, ['Jerry', 'jerry@me.com', jerryHash, 'user']);
+      console.log('Seeded demo users (admin, Tom, Jerry)');
+    } catch (e) {
+      console.error('Error seeding users:', e.message || e);
+    }
   });
 }
 
@@ -249,43 +274,47 @@ app.get('/api/notes/search/:query', (req, res) => {
 });
 
 // Start server
-// ============ HARDCODED USERS ============
-const users = [
-  {
-    username: 'Admin',
-    email: 'admin@me.com',
-    password: 'admin123',
-    role: 'admin'
-  },
-  {
-    username: 'Tom',
-    email: 'tom@me.com',
-    password: 'tompass',
-    role: 'user'
-  },
-  {
-    username: 'Jerry',
-    email: 'jerry@me.com',
-    password: 'jerrypass',
-    role: 'user'
-  }
-];
+// ============ AUTH: Signup & Login (DB-backed) ============
 
-// ============ LOGIN ENDPOINT ============
+// Signup endpoint: create new user with hashed password
+app.post('/api/signup', (req, res) => {
+  const { username, email, password } = req.body;
+  if (!username || !email || !password) {
+    return res.json({ success: false, error: 'Please provide username, email and password.' });
+  }
+
+  const emailLower = email.toLowerCase();
+  db.get('SELECT id FROM users WHERE email = ?', [emailLower], (err, row) => {
+    if (err) return res.status(500).json({ success: false, error: 'Server error' });
+    if (row) return res.json({ success: false, error: 'Email already registered' });
+
+    const hash = bcrypt.hashSync(password, 10);
+    db.run('INSERT INTO users (username, email, password, role) VALUES (?,?,?,?)', [username, emailLower, hash, 'user'], function(err) {
+      if (err) return res.status(500).json({ success: false, error: err.message });
+      return res.json({ success: true, user: { username, email: emailLower, role: 'user' } });
+    });
+  });
+});
+
+// Login endpoint: verify against users table
 app.post('/api/login', (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
     return res.json({ success: false, error: 'Please provide email and password.' });
   }
-  const user = users.find(u =>
-    u.email.toLowerCase() === email.toLowerCase() &&
-    u.password === password
-  );
-  if (user) {
-    return res.json({ success: true, user: { username: user.username, email: user.email, role: user.role } });
-  } else {
-    return res.json({ success: false, error: 'Invalid credentials.' });
-  }
+
+  const emailLower = email.toLowerCase();
+  db.get('SELECT * FROM users WHERE email = ?', [emailLower], (err, user) => {
+    if (err) return res.status(500).json({ success: false, error: 'Server error' });
+    if (!user) return res.json({ success: false, error: 'Invalid credentials.' });
+
+    const match = bcrypt.compareSync(password, user.password);
+    if (match) {
+      return res.json({ success: true, user: { username: user.username, email: user.email, role: user.role } });
+    } else {
+      return res.json({ success: false, error: 'Invalid credentials.' });
+    }
+  });
 });
 app.get('/', (req, res) => {
   res.json({ 
