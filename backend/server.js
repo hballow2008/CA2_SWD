@@ -9,6 +9,32 @@ const PORT = 5001;
 app.use(cors());
 app.use(express.json());
 
+// Input validation
+function sanitizeInput(input, maxLength = 1000) {
+  if (typeof input !== 'string') return '';
+  return input.trim().substring(0, maxLength);
+}
+
+function validateEmail(email) {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+
+function validateUsername(username) {
+  const usernameRegex = /^[a-zA-Z0-9_-]{3,30}$/;
+  return usernameRegex.test(username);
+}
+
+function validatePassword(password) {
+  // At least 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char
+  if (password.length < 8) return false;
+  if (!/[A-Z]/.test(password)) return false;
+  if (!/[a-z]/.test(password)) return false;
+  if (!/[0-9]/.test(password)) return false;
+  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) return false;
+  return true;
+}
+
 // Initialize SQLite Database
 const db = new sqlite3.Database('./notes.db', (err) => {
   if (err) {
@@ -36,11 +62,11 @@ function initializeDatabase() {
     db.run(`
       INSERT OR IGNORE INTO notes (id, title, content, created_by)
       VALUES 
-        (1, '1. Welcom to ADMIN ACCOUNT.', '1. Welcom to ADMIN ACCOUNT.', 'admin')
+        (1, '1. Welcome to ADMIN ACCOUNT.', '1. Welcome to ADMIN ACCOUNT.', 'admin')
     `);
 
-    // Migrate sample notes to admin so they don't appear in normal users' sandboxes
-    db.run("UPDATE notes SET created_by = 'admin' WHERE created_by = 'user'", (err) => {
+    // Migrate sample notes to admin
+    db.run("UPDATE notes SET created_by = ? WHERE created_by = ?", ['admin', 'user'], (err) => {
       if (err) {
         console.error('Error migrating sample notes:', err.message || err);
       } else {
@@ -48,8 +74,8 @@ function initializeDatabase() {
       }
     });
 
-    // Remove unwanted sample notes (shopping list, meeting notes) if present
-    db.run("DELETE FROM notes WHERE id IN (2,3) OR title IN ('Shopping List','Meeting Notes')", (err) => {
+    // Remove unwanted sample notes
+    db.run("DELETE FROM notes WHERE id IN (2,3) OR title IN (?,?)", ['Shopping List', 'Meeting Notes'], (err) => {
       if (err) {
         console.error('Error deleting sample notes:', err.message || err);
       } else {
@@ -58,7 +84,8 @@ function initializeDatabase() {
     });
 
     console.log('Database initialized successfully');
-    // Create users table and seed demo users (passwords hashed)
+    
+    // Create users table
     db.run(`
       CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -71,13 +98,16 @@ function initializeDatabase() {
     `);
 
     try {
-      const adminHash = bcrypt.hashSync('admin123', 10);
-      const tomHash = bcrypt.hashSync('tompass', 10);
-      const jerryHash = bcrypt.hashSync('jerrypass', 10);
+      const adminHash = bcrypt.hashSync('Admin@123', 10);
+      const tomHash = bcrypt.hashSync('Tom@pass123', 10);
+      const jerryHash = bcrypt.hashSync('Jerry@pass123', 10);
 
-      db.run(`INSERT OR IGNORE INTO users (username, email, password, role) VALUES (?,?,?,?)`, ['admin', 'admin@me.com', adminHash, 'admin']);
-      db.run(`INSERT OR IGNORE INTO users (username, email, password, role) VALUES (?,?,?,?)`, ['Tom', 'tom@me.com', tomHash, 'user']);
-      db.run(`INSERT OR IGNORE INTO users (username, email, password, role) VALUES (?,?,?,?)`, ['Jerry', 'jerry@me.com', jerryHash, 'user']);
+      db.run(`INSERT OR IGNORE INTO users (username, email, password, role) VALUES (?,?,?,?)`, 
+        ['admin', 'admin@me.com', adminHash, 'admin']);
+      db.run(`INSERT OR IGNORE INTO users (username, email, password, role) VALUES (?,?,?,?)`, 
+        ['Tom', 'tom@me.com', tomHash, 'user']);
+      db.run(`INSERT OR IGNORE INTO users (username, email, password, role) VALUES (?,?,?,?)`, 
+        ['Jerry', 'jerry@me.com', jerryHash, 'user']);
       console.log('Seeded demo users (admin, Tom, Jerry)');
     } catch (e) {
       console.error('Error seeding users:', e.message || e);
@@ -86,20 +116,17 @@ function initializeDatabase() {
 }
 
 // ============ NOTES ROUTES ============
-// Check if user can access note
-// Check if user can access note. For non-admins, compare by username.
 function canAccessNote(role, createdBy, username) {
   if (role === 'admin') return true;
   return createdBy === username;
 }
 
-// Check if user can modify note. For non-admins, compare by username.
 function canModifyNote(role, createdBy, username) {
   if (role === 'admin') return true;
   return createdBy === username;
 }
 
-// Get notes based on role
+// Get notes based on role 
 app.get('/api/notes', (req, res) => {
   const { role, username } = req.query;
   
@@ -108,16 +135,17 @@ app.get('/api/notes', (req, res) => {
   }
 
   let query = 'SELECT * FROM notes';
+  let params = [];
 
-  // Regular users see only their own notes (created_by === username)
   if (role === 'user') {
     if (!username) return res.status(400).json({ error: 'Missing username for user role' });
-    query += ` WHERE created_by = '${username}'`;
+    query += ' WHERE created_by = ?';
+    params.push(sanitizeInput(username, 50));
   }
   
   query += ' ORDER BY created_at DESC';
   
-  db.all(query, (err, notes) => {
+  db.all(query, params, (err, notes) => {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
@@ -134,7 +162,12 @@ app.get('/api/notes/:id', (req, res) => {
     return res.status(400).json({ error: 'Invalid or missing role' });
   }
 
-  db.get(`SELECT * FROM notes WHERE id = ${id}`, (err, note) => {
+  const noteId = parseInt(id);
+  if (isNaN(noteId)) {
+    return res.status(400).json({ error: 'Invalid note ID' });
+  }
+
+  db.get('SELECT * FROM notes WHERE id = ?', [noteId], (err, note) => {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
@@ -142,7 +175,6 @@ app.get('/api/notes/:id', (req, res) => {
       return res.status(404).json({ error: 'Note not found' });
     }
     
-    // Check permissions
     if (!canAccessNote(role, note.created_by, username)) {
       return res.status(403).json({ error: 'Access denied' });
     }
@@ -163,26 +195,33 @@ app.post('/api/notes', (req, res) => {
     return res.status(400).json({ error: 'Missing username for user role' });
   }
 
-  if (!title || !content) {
+  // Sanitize inputs entered
+  const cleanTitle = sanitizeInput(title, 200);
+  const cleanContent = sanitizeInput(content, 5000);
+
+  if (!cleanTitle || !cleanContent) {
     return res.status(400).json({ error: 'Title and content are required' });
   }
 
   const creator = role === 'admin' ? (username || 'admin') : username;
-  const query = `INSERT INTO notes (title, content, created_by) VALUES ('${title}', '${content}', '${creator}')`;
+  const cleanCreator = sanitizeInput(creator, 50);
   
-  db.run(query, function(err) {
-    if (err) {
-      return res.status(500).json({ error: err.message });
+  db.run(
+    'INSERT INTO notes (title, content, created_by) VALUES (?, ?, ?)',
+    [cleanTitle, cleanContent, cleanCreator],
+    function(err) {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      res.json({
+        message: 'Note created',
+        noteId: this.lastID
+      });
     }
-    
-    res.json({
-      message: 'Note created',
-      noteId: this.lastID
-    });
-  });
+  );
 });
 
-// Update note
+// Update note 
 app.put('/api/notes/:id', (req, res) => {
   const { id } = req.params;
   const { title, content, role, username } = req.body;
@@ -191,8 +230,13 @@ app.put('/api/notes/:id', (req, res) => {
     return res.status(400).json({ error: 'Invalid or missing role' });
   }
 
+  const noteId = parseInt(id);
+  if (isNaN(noteId)) {
+    return res.status(400).json({ error: 'Invalid note ID' });
+  }
+
   // First get the note to check ownership
-  db.get(`SELECT * FROM notes WHERE id = ${id}`, (err, note) => {
+  db.get('SELECT * FROM notes WHERE id = ?', [noteId], (err, note) => {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
@@ -200,23 +244,32 @@ app.put('/api/notes/:id', (req, res) => {
       return res.status(404).json({ error: 'Note not found' });
     }
     
-    // Check permissions
     if (!canModifyNote(role, note.created_by, username)) {
       return res.status(403).json({ error: 'Access denied - you can only edit your own notes' });
     }
     
-    const query = `UPDATE notes SET title = '${title}', content = '${content}', updated_at = CURRENT_TIMESTAMP WHERE id = ${id}`;
+    // Sanitize inputs entered
+    const cleanTitle = sanitizeInput(title, 200);
+    const cleanContent = sanitizeInput(content, 5000);
+
+    if (!cleanTitle || !cleanContent) {
+      return res.status(400).json({ error: 'Title and content are required' });
+    }
     
-    db.run(query, function(err) {
-      if (err) {
-        return res.status(500).json({ error: err.message });
+    db.run(
+      'UPDATE notes SET title = ?, content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [cleanTitle, cleanContent, noteId],
+      function(err) {
+        if (err) {
+          return res.status(500).json({ error: err.message });
+        }
+        res.json({ message: 'Note updated', changes: this.changes });
       }
-      res.json({ message: 'Note updated', changes: this.changes });
-    });
+    );
   });
 });
 
-// Delete note
+// Delete note 
 app.delete('/api/notes/:id', (req, res) => {
   const { id } = req.params;
   const { role, username } = req.query;
@@ -225,8 +278,13 @@ app.delete('/api/notes/:id', (req, res) => {
     return res.status(400).json({ error: 'Invalid or missing role' });
   }
 
+  const noteId = parseInt(id);
+  if (isNaN(noteId)) {
+    return res.status(400).json({ error: 'Invalid note ID' });
+  }
+
   // First get the note to check ownership
-  db.get(`SELECT * FROM notes WHERE id = ${id}`, (err, note) => {
+  db.get('SELECT * FROM notes WHERE id = ?', [noteId], (err, note) => {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
@@ -234,12 +292,11 @@ app.delete('/api/notes/:id', (req, res) => {
       return res.status(404).json({ error: 'Note not found' });
     }
     
-    // Check permissions
     if (!canModifyNote(role, note.created_by, username)) {
       return res.status(403).json({ error: 'Access denied - you can only delete your own notes' });
     }
     
-    db.run(`DELETE FROM notes WHERE id = ${id}`, function(err) {
+    db.run('DELETE FROM notes WHERE id = ?', [noteId], function(err) {
       if (err) {
         return res.status(500).json({ error: err.message });
       }
@@ -248,7 +305,7 @@ app.delete('/api/notes/:id', (req, res) => {
   });
 });
 
-// Search notes
+// Search notes 
 app.get('/api/notes/search/:query', (req, res) => {
   const { query } = req.params;
   const { role, username } = req.query;
@@ -257,15 +314,23 @@ app.get('/api/notes/search/:query', (req, res) => {
     return res.status(400).json({ error: 'Invalid or missing role' });
   }
   
-  let sql = `SELECT * FROM notes WHERE (title LIKE '%${query}%' OR content LIKE '%${query}%')`;
+  const cleanQuery = sanitizeInput(query, 100);
+  if (!cleanQuery) {
+    return res.status(400).json({ error: 'Search query is required' });
+  }
+
+  const searchPattern = `%${cleanQuery}%`;
+  let sql = 'SELECT * FROM notes WHERE (title LIKE ? OR content LIKE ?)';
+  let params = [searchPattern, searchPattern];
   
-  // Regular users see only their own notes
+  // Regular users can see only their own notes
   if (role === 'user') {
     if (!username) return res.status(400).json({ error: 'Missing username for search' });
-    sql += ` AND created_by = '${username}'`;
+    sql += ' AND created_by = ?';
+    params.push(sanitizeInput(username, 50));
   }
   
-  db.all(sql, (err, notes) => {
+  db.all(sql, params, (err, notes) => {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
@@ -273,37 +338,65 @@ app.get('/api/notes/search/:query', (req, res) => {
   });
 });
 
-// Start server
 // ============ AUTH: Signup & Login (DB-backed) ============
 
-// Signup endpoint: create new user with hashed password
+// Signup endpoint - SECURED
 app.post('/api/signup', (req, res) => {
   const { username, email, password } = req.body;
+  
   if (!username || !email || !password) {
     return res.json({ success: false, error: 'Please provide username, email and password.' });
   }
 
-  const emailLower = email.toLowerCase();
+  // Validate username
+  const cleanUsername = sanitizeInput(username, 30);
+  if (!validateUsername(cleanUsername)) {
+    return res.json({ success: false, error: 'Username must be 3-30 characters (letters, numbers, underscore, hyphen only)' });
+  }
+
+  // Validate email
+  const emailLower = email.toLowerCase().trim();
+  if (!validateEmail(emailLower)) {
+    return res.json({ success: false, error: 'Please provide a valid email address.' });
+  }
+
+  // Validate password strength
+  if (!validatePassword(password)) {
+    return res.json({ 
+      success: false, 
+      error: 'Password must be at least 8 characters with uppercase, lowercase, number, and special character.' 
+    });
+  }
+
   db.get('SELECT id FROM users WHERE email = ?', [emailLower], (err, row) => {
     if (err) return res.status(500).json({ success: false, error: 'Server error' });
     if (row) return res.json({ success: false, error: 'Email already registered' });
 
     const hash = bcrypt.hashSync(password, 10);
-    db.run('INSERT INTO users (username, email, password, role) VALUES (?,?,?,?)', [username, emailLower, hash, 'user'], function(err) {
-      if (err) return res.status(500).json({ success: false, error: err.message });
-      return res.json({ success: true, user: { username, email: emailLower, role: 'user' } });
-    });
+    db.run(
+      'INSERT INTO users (username, email, password, role) VALUES (?,?,?,?)', 
+      [cleanUsername, emailLower, hash, 'user'], 
+      function(err) {
+        if (err) return res.status(500).json({ success: false, error: err.message });
+        return res.json({ success: true, user: { username: cleanUsername, email: emailLower, role: 'user' } });
+      }
+    );
   });
 });
 
-// Login endpoint: verify against users table
+// Login endpoint
 app.post('/api/login', (req, res) => {
   const { email, password } = req.body;
+  
   if (!email || !password) {
     return res.json({ success: false, error: 'Please provide email and password.' });
   }
 
-  const emailLower = email.toLowerCase();
+  const emailLower = email.toLowerCase().trim();
+  if (!validateEmail(emailLower)) {
+    return res.json({ success: false, error: 'Please provide a valid email address.' });
+  }
+
   db.get('SELECT * FROM users WHERE email = ?', [emailLower], (err, user) => {
     if (err) return res.status(500).json({ success: false, error: 'Server error' });
     if (!user) return res.json({ success: false, error: 'Invalid credentials.' });
@@ -316,6 +409,7 @@ app.post('/api/login', (req, res) => {
     }
   });
 });
+
 app.get('/', (req, res) => {
   res.json({ 
     message: 'Notes API Server',
@@ -330,4 +424,4 @@ app.get('/', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
-  });
+});
