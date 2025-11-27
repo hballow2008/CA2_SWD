@@ -1,3 +1,28 @@
+// Sanitization and validation helpers
+function sanitizeInput(input, maxLength = 1000) {
+    if (typeof input !== 'string') return '';
+    return input.trim().substring(0, maxLength);
+}
+
+function sanitizeHTML(html) {
+    // Use DOMPurify if available, otherwise escape HTML
+    if (typeof DOMPurify !== 'undefined') {
+        return DOMPurify.sanitize(html, {
+            ALLOWED_TAGS: ['b', 'i', 'u', 'strong', 'em', 'p', 'br', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'a', 'code', 'pre'],
+            ALLOWED_ATTR: ['href', 'title', 'target']
+        });
+    } else {
+        // Fallback: escape HTML
+        return escapeHTML(html);
+    }
+}
+
+function escapeHTML(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 let currentRole = 'user';
 let currentUser = null;
 let allNotes = [];
@@ -83,7 +108,12 @@ document.addEventListener('DOMContentLoaded', () => {
     loadNotes();
     updateRoleUI();
     
-    showNotification(`Welcome back, ${currentUser.username}!`, 'success');
+    // Show welcome message only if just logged in
+    const justLoggedIn = sessionStorage.getItem('justLoggedIn');
+    if (justLoggedIn === 'true') {
+        showNotification(`Welcome back, ${currentUser.username}!`, 'success');
+        sessionStorage.removeItem('justLoggedIn'); // Clear flag
+    }
 });
 
 // Display user info in header
@@ -157,10 +187,14 @@ function renderNotes(notes) {
     notesList.innerHTML = notes.map(note => {
         const canEdit = currentRole === 'admin' || (currentUser && note.created_by === currentUser.username);
         
+        // Sanitize title and content for display
+        const safeTitle = escapeHTML(note.title);
+        const safeContent = sanitizeHTML(note.content);
+        
         return `
         <div class="note-card">
             <div class="note-card-header">
-                <h3>${note.title}</h3>
+                <h3>${safeTitle}</h3>
                 ${canEdit ? `
                     <div class="note-actions">
                         <button class="btn-edit" onclick="editNote(${note.id})">Edit</button>
@@ -169,10 +203,10 @@ function renderNotes(notes) {
                 ` : ''}
             </div>
             <div class="note-card-content">
-                ${note.content}
+                ${safeContent}
             </div>
             <div class="note-card-footer">
-                <span class="note-badge badge-${note.created_by}">${note.created_by}</span>
+                <span class="note-badge badge-${escapeHTML(note.created_by)}">${escapeHTML(note.created_by)}</span>
                 <span>Created: ${new Date(note.created_at).toLocaleDateString()}</span>
             </div>
         </div>
@@ -194,14 +228,25 @@ function toggleForm() {
     }
 }
 
-// Save note (create or update)
+// Save note (create/update)
 async function saveNote() {
-    const title = document.getElementById('noteTitle').value.trim();
-    const content = document.getElementById('noteContent').value.trim();
+    const titleInput = document.getElementById('noteTitle');
+    const contentInput = document.getElementById('noteContent');
     const editNoteId = document.getElementById('editNoteId').value;
 
-    if (!title || !content) {
-        showNotification('Please fill in both title and content!', 'warning');
+    const title = sanitizeInput(titleInput.value, 200);
+    const content = sanitizeInput(contentInput.value, 5000);
+
+    // Validate inputs
+    if (!title || title.trim().length === 0) {
+        showNotification('Please enter a note title!', 'warning');
+        titleInput.focus();
+        return;
+    }
+    
+    if (!content || content.trim().length === 0) {
+        showNotification('Please enter note content!', 'warning');
+        contentInput.focus();
         return;
     }
 
@@ -267,10 +312,11 @@ function cancelEdit() {
 // Search notes
 async function searchNotes() {
     const searchInput = document.getElementById('searchInput');
-    const query = searchInput.value.trim();
+    const query = sanitizeInput(searchInput.value, 100);
 
-    if (!query) {
+    if (!query || query.trim().length === 0) {
         showNotification('Please enter a search query!', 'warning');
+        searchInput.focus();
         return;
     }
 
@@ -283,9 +329,9 @@ async function searchNotes() {
         renderNotes(results);
         
         if (results.length === 0) {
-            showNotification(`No notes found matching "${query}"`, 'info');
+            showNotification(`No notes found matching "${escapeHTML(query)}"`, 'info');
         } else {
-            showNotification(`Found ${results.length} note(s) matching "${query}"`, 'success');
+            showNotification(`Found ${results.length} note(s) matching "${escapeHTML(query)}"`, 'success');
         }
     } catch (error) {
         showNotification('✗ Search error: ' + error.message, 'error');

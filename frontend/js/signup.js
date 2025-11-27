@@ -27,7 +27,6 @@ function validatePassword(password) {
     if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
         errors.push('one special character (!@#$%^&*...)');
     }
-    
     return errors;
 }
 

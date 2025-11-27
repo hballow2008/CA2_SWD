@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Notes App - Vanilla JS</title>
     <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
 </head>
 <body>
     <header class="app-header">
@@ -21,30 +22,38 @@
         <div class="role-info">
             <div id="roleMessage"></div>
         </div>
+
         <!-- Search Bar -->
         <div class="search-section">
-            <input type="text" id="searchInput" placeholder="Search notes..." />
+            <input type="text" id="searchInput" placeholder="Search notes..." maxlength="100"/>
             <button onclick="searchNotes()"> Search</button>
             <button onclick="clearSearch()"> Clear</button>
         </div>
-        <!-- Create Note Section (Only for User) -->
+
+        <!-- Create Note Section -->
         <div id="createSection" class="create-section">
             <button class="btn-primary" onclick="toggleForm()">
                 New Note
             </button>
 
             <div id="noteForm" class="note-form hidden">
-                <h3 id="formTitle"> Create New Note </h3>
+                <h3 id="formTitle">Create New Note</h3>
                 <input type="hidden" id="editNoteId" value="">
                 
                 <div class="form-group">
-                    <label for="noteTitle"> Title: </label>
-                    <input type="text" id="noteTitle" placeholder="Enter note title" />
+                    <label for="noteTitle">Title:</label>
+                    <input type="text" id="noteTitle" placeholder="Enter note title" maxlength="200" required />
                 </div>
 
                 <div class="form-group">
-                    <label for="noteContent"> Content:</label>
-                    <textarea id="noteContent" rows="6" placeholder=" Enter note content "></textarea>
+                    <label for="noteContent">Content:</label>
+                    <div style="margin-bottom: 0.5rem; font-size: 0.85rem; color: #666;">
+                        You can use HTML formatting: &lt;b&gt;bold&lt;/b&gt;, &lt;i&gt;italic&lt;/i&gt;, &lt;u&gt;underline&lt;/u&gt;, &lt;ul&gt;&lt;li&gt;lists&lt;/li&gt;&lt;/ul&gt;
+                    </div>
+                    <textarea id="noteContent" rows="8" placeholder="Enter note content (HTML supported)" maxlength="5000" required></textarea>
+                    <div style="text-align: right; font-size: 0.85rem; color: #999; margin-top: 0.25rem;">
+                        <span id="charCount">0</span> / 5000 characters
+                    </div>
                 </div>
 
                 <div class="form-actions">
@@ -57,6 +66,7 @@
                 </div>
             </div>
         </div>
+        
         <!-- Notes List -->
         <div class="notes-section">
             <h2> All Notes </h2>
@@ -72,5 +82,18 @@
 
     <script src="js/api.js"></script>
     <script src="js/app.js"></script>
+    <script>
+        // Character counter
+        document.addEventListener('DOMContentLoaded', () => {
+            const textarea = document.getElementById('noteContent');
+            const charCount = document.getElementById('charCount');
+            
+            if (textarea && charCount) {
+                textarea.addEventListener('input', () => {
+                    charCount.textContent = textarea.value.length;
+                });
+            }
+        });
+    </script>
 </body>
 </html>
