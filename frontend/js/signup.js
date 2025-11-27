@@ -27,12 +27,47 @@ function validatePassword(password) {
     if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
         errors.push('one special character (!@#$%^&*...)');
     }
+    
     return errors;
 }
 
 function sanitizeInput(input, maxLength = 100) {
     if (typeof input !== 'string') return '';
     return input.trim().substring(0, maxLength);
+}
+
+// Real-time email validation indicator
+function updateEmailValidation() {
+    const email = document.getElementById('email').value.trim();
+    const emailIndicator = document.getElementById('emailIndicator');
+    
+    if (!email) {
+        emailIndicator.innerHTML = '';
+        return;
+    }
+    
+    if (validateEmail(email)) {
+        emailIndicator.innerHTML = '<span style="color: green;">✓ Valid email format</span>';
+    } else {
+        emailIndicator.innerHTML = '<span style="color: #dc3545;">✗ Please enter a valid email (e.g., user@example.com)</span>';
+    }
+}
+
+// Real-time username validation indicator
+function updateUsernameValidation() {
+    const username = document.getElementById('username').value.trim();
+    const usernameIndicator = document.getElementById('usernameIndicator');
+    
+    if (!username) {
+        usernameIndicator.innerHTML = '';
+        return;
+    }
+    
+    if (validateUsername(username)) {
+        usernameIndicator.innerHTML = '<span style="color: green;">✓ Valid username</span>';
+    } else {
+        usernameIndicator.innerHTML = '<span style="color: #dc3545;">✗ 3-30 characters (letters, numbers, _ or - only)</span>';
+    }
 }
 
 // Real-time password strength indicator
@@ -53,15 +88,57 @@ function updatePasswordStrength() {
     }
 }
 
+// Real-time password match indicator
+function updatePasswordMatch() {
+    const password = document.getElementById('password').value;
+    const retype = document.getElementById('retype').value;
+    const matchIndicator = document.getElementById('passwordMatch');
+    
+    if (!retype) {
+        matchIndicator.innerHTML = '';
+        return;
+    }
+    
+    if (password === retype) {
+        matchIndicator.innerHTML = '<span style="color: green;">✓ Passwords match</span>';
+    } else {
+        matchIndicator.innerHTML = '<span style="color: #dc3545;">✗ Passwords do not match</span>';
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+    // Add username validation indicator
+    const usernameInput = document.getElementById('username');
+    const usernameIndicator = document.createElement('div');
+    usernameIndicator.id = 'usernameIndicator';
+    usernameIndicator.style.cssText = 'margin-top: 0.5rem; font-size: 0.85rem;';
+    usernameInput.parentNode.appendChild(usernameIndicator);
+    usernameInput.addEventListener('input', updateUsernameValidation);
+    
+    // Add email validation indicator
+    const emailInput = document.getElementById('email');
+    const emailIndicator = document.createElement('div');
+    emailIndicator.id = 'emailIndicator';
+    emailIndicator.style.cssText = 'margin-top: 0.5rem; font-size: 0.85rem;';
+    emailInput.parentNode.appendChild(emailIndicator);
+    emailInput.addEventListener('input', updateEmailValidation);
+    
     // Add password strength indicator
     const passwordInput = document.getElementById('password');
     const strengthDiv = document.createElement('div');
     strengthDiv.id = 'passwordStrength';
     strengthDiv.style.cssText = 'margin-top: 0.5rem; font-size: 0.85rem;';
     passwordInput.parentNode.appendChild(strengthDiv);
-    
     passwordInput.addEventListener('input', updatePasswordStrength);
+    
+    // Add password match indicator
+    const retypeInput = document.getElementById('retype');
+    const matchIndicator = document.createElement('div');
+    matchIndicator.id = 'passwordMatch';
+    matchIndicator.style.cssText = 'margin-top: 0.5rem; font-size: 0.85rem;';
+    retypeInput.parentNode.appendChild(matchIndicator);
+    retypeInput.addEventListener('input', updatePasswordMatch);
+    passwordInput.addEventListener('input', updatePasswordMatch); // Also update when password changes
 });
 
 document.getElementById('signupForm').addEventListener('submit', async function(e) {
@@ -99,7 +176,7 @@ document.getElementById('signupForm').addEventListener('submit', async function(
         return;
     }
     
-    // Validate passwords matches
+    // Validate passwords match
     if (password !== retype) {
         msg.textContent = '✗ Passwords do not match';
         msg.style.color = 'red';
@@ -124,7 +201,7 @@ document.getElementById('signupForm').addEventListener('submit', async function(
             msg.style.color = 'green';
             msg.style.fontWeight = 'bold';
             
-            // Redirect after 800ms to login page
+            // Redirect after 800ms
             setTimeout(() => {
                 window.location.href = 'login.html';
             }, 800);
