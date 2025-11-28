@@ -75,10 +75,13 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
             sessionStorage.setItem('justLoggedIn', 'true');
             
             console.log('User stored:', localStorage.getItem('currentUser')); // Debug log
-            console.log('Redirecting to index.html...'); // Debug log
+            console.log('Redirecting to index.html in 1.5 seconds...'); // Debug log
             
-            // Redirect immediately (no timeout to test)
-            window.location.href = 'index.html';
+            // Redirect after 1.5 seconds to allow user to see success message
+            // The 5-second notification will show on the dashboard
+            setTimeout(() => {
+                window.location.href = 'index.html';
+            }, 1500);
             
         } else {
             // Handle errors

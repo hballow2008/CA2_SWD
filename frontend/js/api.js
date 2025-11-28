@@ -37,6 +37,31 @@ const api = {
         }
     },
 
+    getNote: async (id, role = 'user') => {
+        try {
+            const username = getStoredUsername();
+            let url = `${API_URL}/notes/${encodeURIComponent(id)}?role=${encodeURIComponent(role)}`;
+            if (role === 'user' && username) url += `&username=${encodeURIComponent(username)}`;
+            
+            const response = await fetch(url);
+            const data = await response.json();
+            
+            // Check for session expired
+            if (data.sessionExpired || data.error?.includes('Session')) {
+                throw new Error('Session expired');
+            }
+            
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to fetch note');
+            }
+            
+            return data;
+        } catch (error) {
+            console.error('Error fetching note:', error);
+            throw error;
+        }
+    },
+
     createNote: async (title, content, role) => {
         try {
             const username = getStoredUsername();

@@ -135,9 +135,12 @@ function initializeDatabase() {
 }
 
 function validateSession(req, res, next) {
-  const { username, email } = req.query || req.body;
+  // Get username/email from query params OR body
+  const { username, email } = req.query || req.body || {};
   
+  // If neither username nor email is provided
   if (!email && !username) {
+    console.log('❌ No credentials provided'); // Debug log
     return res.status(401).json({ 
       error: 'Session expired. Please login again.',
       sessionExpired: true 
@@ -145,30 +148,46 @@ function validateSession(req, res, next) {
   }
 
   const identifier = email || username;
+  
+  console.log('✅ Validating session for:', identifier); // Debug log
+  
   db.get('SELECT * FROM users WHERE email = ? OR username = ?', [identifier, identifier], (err, user) => {
-    if (err || !user) {
+    if (err) {
+      console.log('❌ Database error:', err); // Debug log
+      return res.status(500).json({ 
+        error: 'Server error',
+        sessionExpired: false 
+      });
+    }
+    
+    if (!user) {
+      console.log('❌ User not found:', identifier); // Debug log
       return res.status(401).json({ 
         error: 'Session expired. Please login again.',
         sessionExpired: true 
       });
     }
 
+    // Check if account is locked
     if (user.locked_until) {
       const lockedUntil = new Date(user.locked_until);
       const now = new Date();
       
       if (lockedUntil > now) {
         const minutesLeft = Math.ceil((lockedUntil - now) / 1000 / 60);
+        console.log('❌ Account locked:', identifier); // Debug log
         return res.status(403).json({ 
           error: `Account locked. Try again in ${minutesLeft} minute(s).`,
           accountLocked: true,
           minutesLeft
         });
       } else {
+        // Unlock account
         db.run('UPDATE users SET locked_until = NULL, failed_attempts = 0 WHERE id = ?', [user.id]);
       }
     }
 
+    console.log('✅ Session valid for:', user.username); // Debug log
     req.user = user;
     next();
   });
