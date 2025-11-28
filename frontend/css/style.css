@@ -547,3 +547,39 @@ body.user-theme {
 .settings-container button:hover {
     background: #5568d3;
 }
+
+/* Settings Button */
+.settings-btn {
+    padding: 0.6rem 1.2rem;
+    background: #667eea;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.95rem;
+    transition: background 0.3s;
+    margin-right: 0.5rem;
+}
+
+.settings-btn:hover {
+    background: #5568d3;
+}
+
+/* Admin theme settings button */
+body.admin-theme .settings-btn {
+    background: #dc3545;
+}
+
+body.admin-theme .settings-btn:hover {
+    background: #c82333;
+}
+
+/* User theme settings button */
+body.user-theme .settings-btn {
+    background: #28a745;
+}
+
+body.user-theme .settings-btn:hover {
+    background: #218838;
+}

@@ -9,14 +9,15 @@
 </head>
 <body>
     <header class="app-header">
-        <div class="container">
-            <h1 id="appTitle"> My Note-Taking App </h1>
-            <div class="header-right">
-                <span id="userDisplay" class="user-display"></span>
-                <button id="logoutBtn" class="logout-btn" onclick="logout()">Logout</button>
-            </div>
+    <div class="container">
+        <h1 id="appTitle">My Note-Taking App</h1>
+        <div class="header-right">
+            <span id="userDisplay" class="user-display"></span>
+            <button class="settings-btn" onclick="window.location.href='account.html'" title="Account Settings">⚙️ Settings</button>
+            <button id="logoutBtn" class="logout-btn" onclick="logout()">Logout</button>
         </div>
-    </header>
+    </div>
+</header>
 
     <main class="container">
         <div class="role-info">

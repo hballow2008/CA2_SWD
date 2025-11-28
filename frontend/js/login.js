@@ -13,7 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const showBanner = sessionStorage.getItem('showLoginBanner');
     if (showBanner === 'true') {
         const msg = document.getElementById('loginMessage');
-        msg.textContent = 'Account created successfully! Please login with your credentials.';
+        msg.textContent = '✓ Account created successfully! Please login with your credentials.';
         msg.style.color = 'green';
         msg.style.fontWeight = 'bold';
         msg.style.padding = '0.75rem';
@@ -30,19 +30,21 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
     const password = document.getElementById('password').value;
     const msg = document.getElementById('loginMessage');
     
+    // Clear previous message
     msg.textContent = '';
     msg.style.color = '';
     msg.style.background = '';
     msg.style.padding = '';
     
+    // Validate inputs
     if (!email || !password) {
-        msg.textContent = 'Please enter both email and password';
+        msg.textContent = '✗ Please enter both email and password';
         msg.style.color = 'red';
         return;
     }
     
     if (!validateEmail(email)) {
-        msg.textContent = 'Please enter a valid email address';
+        msg.textContent = '✗ Please enter a valid email address';
         msg.style.color = 'red';
         return;
     }
@@ -59,31 +61,40 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
         
         const data = await res.json();
         
+        console.log('Login response:', data); // Debug log
+        
         if (data.success) {
-            msg.textContent = 'Login successful! Redirecting...';
+            msg.textContent = '✓ Login successful! Redirecting...';
             msg.style.color = 'green';
             msg.style.fontWeight = 'bold';
             
+            // Store user info in localStorage
             localStorage.setItem('currentUser', JSON.stringify(data.user));
+            
+            // Set flag to show welcome message
             sessionStorage.setItem('justLoggedIn', 'true');
             
-            setTimeout(() => {
-                window.location.href = 'index.html';
-            }, 1000);
+            console.log('User stored:', localStorage.getItem('currentUser')); // Debug log
+            console.log('Redirecting to index.html...'); // Debug log
+            
+            // Redirect immediately (no timeout to test)
+            window.location.href = 'index.html';
+            
         } else {
+            // Handle errors
             if (data.accountLocked) {
-                msg.textContent = ` ${data.error}`;
+                msg.textContent = `🔒 ${data.error}`;
                 msg.style.color = '#dc3545';
                 msg.style.fontWeight = 'bold';
             } else if (data.emailNotFound) {
-                msg.textContent = 'Email not found. Please check your email or sign up.';
+                msg.textContent = '✗ Email not found. Please check your email or sign up.';
                 msg.style.color = 'red';
             } else if (data.attemptsLeft !== undefined) {
-                msg.textContent = `${data.error}`;
+                msg.textContent = `✗ ${data.error}`;
                 msg.style.color = '#dc3545';
                 msg.style.fontWeight = 'bold';
             } else if (data.rateLimited) {
-                msg.textContent = `${data.error}`;
+                msg.textContent = `⏱️ ${data.error}`;
                 msg.style.color = '#ffc107';
                 msg.style.fontWeight = 'bold';
             } else {

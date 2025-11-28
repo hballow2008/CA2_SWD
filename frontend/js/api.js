@@ -17,25 +17,22 @@ const api = {
             const username = getStoredUsername();
             let url = `${API_URL}/notes?role=${encodeURIComponent(role)}`;
             if (role === 'user' && username) url += `&username=${encodeURIComponent(username)}`;
+            
             const response = await fetch(url);
-            if (!response.ok) throw new Error('Failed to fetch notes');
-            return await response.json();
+            const data = await response.json();
+            
+            // Check for session expired
+            if (data.sessionExpired || data.error?.includes('Session')) {
+                throw new Error('Session expired');
+            }
+            
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to fetch notes');
+            }
+            
+            return data;
         } catch (error) {
             console.error('Error fetching notes:', error);
-            throw error;
-        }
-    },
-
-    getNote: async (id, role = 'user') => {
-        try {
-            const username = getStoredUsername();
-            let url = `${API_URL}/notes/${encodeURIComponent(id)}?role=${encodeURIComponent(role)}`;
-            if (role === 'user' && username) url += `&username=${encodeURIComponent(username)}`;
-            const response = await fetch(url);
-            if (!response.ok) throw new Error('Failed to fetch note');
-            return await response.json();
-        } catch (error) {
-            console.error('Error fetching note:', error);
             throw error;
         }
     },
@@ -45,13 +42,25 @@ const api = {
             const username = getStoredUsername();
             const body = { title, content, role };
             if (role === 'user' && username) body.username = username;
+            
             const response = await fetch(`${API_URL}/notes`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body)
             });
-            if (!response.ok) throw new Error('Failed to create note');
-            return await response.json();
+            
+            const data = await response.json();
+            
+            // Check for session expired
+            if (data.sessionExpired || data.error?.includes('Session')) {
+                throw new Error('Session expired');
+            }
+            
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to create note');
+            }
+            
+            return data;
         } catch (error) {
             console.error('Error creating note:', error);
             throw error;
@@ -63,13 +72,25 @@ const api = {
             const username = getStoredUsername();
             const body = { title, content, role };
             if (role === 'user' && username) body.username = username;
+            
             const response = await fetch(`${API_URL}/notes/${encodeURIComponent(id)}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body)
             });
-            if (!response.ok) throw new Error('Failed to update note');
-            return await response.json();
+            
+            const data = await response.json();
+            
+            // Check for session expired
+            if (data.sessionExpired || data.error?.includes('Session')) {
+                throw new Error('Session expired');
+            }
+            
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to update note');
+            }
+            
+            return data;
         } catch (error) {
             console.error('Error updating note:', error);
             throw error;
@@ -81,9 +102,20 @@ const api = {
             const username = getStoredUsername();
             let url = `${API_URL}/notes/${encodeURIComponent(id)}?role=${encodeURIComponent(role)}`;
             if (role === 'user' && username) url += `&username=${encodeURIComponent(username)}`;
+            
             const response = await fetch(url, { method: 'DELETE' });
-            if (!response.ok) throw new Error('Failed to delete note');
-            return await response.json();
+            const data = await response.json();
+            
+            // Check for session expired
+            if (data.sessionExpired || data.error?.includes('Session')) {
+                throw new Error('Session expired');
+            }
+            
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to delete note');
+            }
+            
+            return data;
         } catch (error) {
             console.error('Error deleting note:', error);
             throw error;
@@ -95,9 +127,20 @@ const api = {
             const username = getStoredUsername();
             let url = `${API_URL}/notes/search/${encodeURIComponent(query)}?role=${encodeURIComponent(role)}`;
             if (role === 'user' && username) url += `&username=${encodeURIComponent(username)}`;
+            
             const response = await fetch(url);
-            if (!response.ok) throw new Error('Search failed');
-            return await response.json();
+            const data = await response.json();
+            
+            // Check for session expired
+            if (data.sessionExpired || data.error?.includes('Session')) {
+                throw new Error('Session expired');
+            }
+            
+            if (!response.ok) {
+                throw new Error(data.error || 'Search failed');
+            }
+            
+            return data;
         } catch (error) {
             console.error('Error searching notes:', error);
             throw error;
