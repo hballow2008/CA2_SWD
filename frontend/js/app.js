@@ -5,14 +5,12 @@ function sanitizeInput(input, maxLength = 1000) {
 }
 
 function sanitizeHTML(html) {
-    // Use DOMPurify if available, otherwise escape HTML
     if (typeof DOMPurify !== 'undefined') {
         return DOMPurify.sanitize(html, {
             ALLOWED_TAGS: ['b', 'i', 'u', 'strong', 'em', 'p', 'br', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'a', 'code', 'pre'],
             ALLOWED_ATTR: ['href', 'title', 'target']
         });
     } else {
-        // Fallback: escape HTML
         return escapeHTML(html);
     }
 }
@@ -27,21 +25,21 @@ let currentRole = 'user';
 let currentUser = null;
 let allNotes = [];
 let editingNoteId = null;
+let sessionTimeoutId = null;
+let lastActivityTime = Date.now();
 
-// Notification system
+// SESSION TIMEOUT: 3 minutes of inactivity
+const SESSION_TIMEOUT = 3 * 60 * 1000; // 3 minutes
+
+// Notification system (5 seconds display)
 function showNotification(message, type = 'info') {
-    // Remove existing notification if any
     const existing = document.querySelector('.app-notification');
-    if (existing) {
-        existing.remove();
-    }
+    if (existing) existing.remove();
     
-    // Create notification element
     const notification = document.createElement('div');
     notification.className = `app-notification notification-${type}`;
     notification.textContent = message;
     
-    // Add styles
     notification.style.cssText = `
         position: fixed;
         top: 20px;
@@ -55,7 +53,6 @@ function showNotification(message, type = 'info') {
         max-width: 400px;
     `;
     
-    // Set colors based on type
     if (type === 'success') {
         notification.style.background = '#28a745';
         notification.style.color = 'white';
@@ -70,7 +67,6 @@ function showNotification(message, type = 'info') {
         notification.style.color = 'white';
     }
     
-    // Add animation
     const style = document.createElement('style');
     style.textContent = `
         @keyframes slideIn {
@@ -86,11 +82,53 @@ function showNotification(message, type = 'info') {
     
     document.body.appendChild(notification);
     
-    // Auto remove after 4 seconds
+    // Auto remove after 5 SECONDS
     setTimeout(() => {
         notification.style.animation = 'slideOut 0.3s ease-out';
         setTimeout(() => notification.remove(), 300);
-    }, 4000);
+    }, 5000);
+}
+
+// Initialize session timeout monitoring
+function initSessionTimeout() {
+    const resetTimer = () => {
+        lastActivityTime = Date.now();
+        
+        if (sessionTimeoutId) clearTimeout(sessionTimeoutId);
+        
+        sessionTimeoutId = setTimeout(handleSessionTimeout, SESSION_TIMEOUT);
+    };
+    
+    document.addEventListener('click', resetTimer);
+    document.addEventListener('keypress', resetTimer);
+    document.addEventListener('scroll', resetTimer);
+    document.addEventListener('mousemove', resetTimer);
+    
+    resetTimer();
+}
+
+// Handle session timeout
+function handleSessionTimeout() {
+    const inactiveTime = Date.now() - lastActivityTime;
+    
+    if (inactiveTime >= SESSION_TIMEOUT) {
+        localStorage.removeItem('currentUser');
+        showNotification('Your session has expired due to inactivity. Please login again.', 'warning');
+        
+        setTimeout(() => {
+            window.location.href = 'login.html';
+        }, 2000);
+    }
+}
+
+// Handle session expired from server
+function handleSessionExpired() {
+    localStorage.removeItem('currentUser');
+    showNotification('Your session has expired. Please login again.', 'warning');
+    
+    setTimeout(() => {
+        window.location.href = 'login.html';
+    }, 2000);
 }
 
 // Initialize app
@@ -108,15 +146,15 @@ document.addEventListener('DOMContentLoaded', () => {
     loadNotes();
     updateRoleUI();
     
-    // Show welcome message only if just logged in
+    initSessionTimeout();
+    
     const justLoggedIn = sessionStorage.getItem('justLoggedIn');
     if (justLoggedIn === 'true') {
-        showNotification(`Welcome back, ${currentUser.username}!`, 'success');
-        sessionStorage.removeItem('justLoggedIn'); // Clear flag
+        showNotification(`✓ Login successful! Welcome back, ${currentUser.username}!`, 'success');
+        sessionStorage.removeItem('justLoggedIn');
     }
 });
 
-// Display user info in header
 function displayUserInfo() {
     const userDisplay = document.getElementById('userDisplay');
     const appTitle = document.getElementById('appTitle');
@@ -124,18 +162,16 @@ function displayUserInfo() {
     appTitle.textContent = `${currentUser.username}'s Note-Taking App`;
 }
 
-// Logout function
 function logout() {
     if (confirm('Are you sure you want to logout?')) {
         localStorage.removeItem('currentUser');
-        showNotification('Logged out successfully!', 'success');
+        showNotification('✓ Logout successful! See you soon.', 'success');
         setTimeout(() => {
             window.location.href = 'login.html';
-        }, 500);
+        }, 1500);
     }
 }
 
-// Update UI based on current role
 function updateRoleUI() {
     const roleMessage = document.getElementById('roleMessage');
     const createSection = document.getElementById('createSection');
@@ -160,7 +196,6 @@ function updateRoleUI() {
     renderNotes(allNotes);
 }
 
-// Load all notes
 async function loadNotes() {
     try {
         const notesList = document.getElementById('notesList');
@@ -169,13 +204,17 @@ async function loadNotes() {
         allNotes = await api.getNotes(currentRole);
         renderNotes(allNotes);
     } catch (error) {
+        if (error.message.includes('session') || error.message.includes('Session')) {
+            handleSessionExpired();
+            return;
+        }
+        
         document.getElementById('notesList').innerHTML = 
             '<p class="no-notes">Error loading notes. Make sure the backend is running!</p>';
         showNotification('Failed to load notes. Check your connection.', 'error');
     }
 }
 
-// Render notes to the page
 function renderNotes(notes) {
     const notesList = document.getElementById('notesList');
 
@@ -187,7 +226,6 @@ function renderNotes(notes) {
     notesList.innerHTML = notes.map(note => {
         const canEdit = currentRole === 'admin' || (currentUser && note.created_by === currentUser.username);
         
-        // Sanitize title and content for display
         const safeTitle = escapeHTML(note.title);
         const safeContent = sanitizeHTML(note.content);
         
@@ -213,7 +251,6 @@ function renderNotes(notes) {
     `}).join('');
 }
 
-// Toggle note form visibility
 function toggleForm() {
     const noteForm = document.getElementById('noteForm');
     const isHidden = noteForm.classList.contains('hidden');
@@ -221,14 +258,12 @@ function toggleForm() {
     if (isHidden) {
         noteForm.classList.remove('hidden');
         document.getElementById('noteTitle').focus();
-        showNotification('Fill in the form to create a new note', 'info');
     } else {
         noteForm.classList.add('hidden');
         cancelEdit();
     }
 }
 
-// Save note (create/update)
 async function saveNote() {
     const titleInput = document.getElementById('noteTitle');
     const contentInput = document.getElementById('noteContent');
@@ -237,7 +272,6 @@ async function saveNote() {
     const title = sanitizeInput(titleInput.value, 200);
     const content = sanitizeInput(contentInput.value, 5000);
 
-    // Validate inputs
     if (!title || title.trim().length === 0) {
         showNotification('Please enter a note title!', 'warning');
         titleInput.focus();
@@ -262,11 +296,14 @@ async function saveNote() {
         cancelEdit();
         loadNotes();
     } catch (error) {
+        if (error.message.includes('session') || error.message.includes('Session')) {
+            handleSessionExpired();
+            return;
+        }
         showNotification('✗ Error saving note: ' + error.message, 'error');
     }
 }
 
-// Edit note
 async function editNote(noteId) {
     try {
         const note = await api.getNote(noteId, currentRole);      
@@ -281,11 +318,14 @@ async function editNote(noteId) {
         
         showNotification('Editing note: ' + note.title, 'info');
     } catch (error) {
+        if (error.message.includes('session') || error.message.includes('Session')) {
+            handleSessionExpired();
+            return;
+        }
         showNotification('✗ Error loading note: ' + error.message, 'error');
     }
 }
 
-// Delete note
 async function deleteNote(noteId) {
     if (!confirm('Are you sure you want to delete this note? This action cannot be undone.')) {
         return;
@@ -296,11 +336,14 @@ async function deleteNote(noteId) {
         showNotification('✓ Note deleted successfully!', 'success');
         loadNotes();
     } catch (error) {
+        if (error.message.includes('session') || error.message.includes('Session')) {
+            handleSessionExpired();
+            return;
+        }
         showNotification('✗ Error deleting note: ' + error.message, 'error');
     }
 }
 
-// Cancel edit
 function cancelEdit() {
     document.getElementById('noteTitle').value = '';
     document.getElementById('noteContent').value = '';
@@ -309,7 +352,6 @@ function cancelEdit() {
     document.getElementById('noteForm').classList.add('hidden');
 }
 
-// Search notes
 async function searchNotes() {
     const searchInput = document.getElementById('searchInput');
     const query = sanitizeInput(searchInput.value, 100);
@@ -334,14 +376,16 @@ async function searchNotes() {
             showNotification(`Found ${results.length} note(s) matching "${escapeHTML(query)}"`, 'success');
         }
     } catch (error) {
+        if (error.message.includes('session') || error.message.includes('Session')) {
+            handleSessionExpired();
+            return;
+        }
         showNotification('✗ Search error: ' + error.message, 'error');
         loadNotes();
     }
 }
 
-// Clear search
 function clearSearch() {
     document.getElementById('searchInput').value = '';
-    showNotification('Search cleared', 'info');
     loadNotes();
 }
