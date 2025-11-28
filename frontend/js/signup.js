@@ -1,4 +1,3 @@
-// Validation functions
 function validateUsername(username) {
     const usernameRegex = /^[a-zA-Z0-9_-]{3,30}$/;
     return usernameRegex.test(username);
@@ -36,7 +35,6 @@ function sanitizeInput(input, maxLength = 100) {
     return input.trim().substring(0, maxLength);
 }
 
-// Real-time email validation indicator
 function updateEmailValidation() {
     const email = document.getElementById('email').value.trim();
     const emailIndicator = document.getElementById('emailIndicator');
@@ -53,7 +51,6 @@ function updateEmailValidation() {
     }
 }
 
-// Real-time username validation indicator
 function updateUsernameValidation() {
     const username = document.getElementById('username').value.trim();
     const usernameIndicator = document.getElementById('usernameIndicator');
@@ -70,7 +67,6 @@ function updateUsernameValidation() {
     }
 }
 
-// Real-time password strength indicator
 function updatePasswordStrength() {
     const password = document.getElementById('password').value;
     const strengthDiv = document.getElementById('passwordStrength');
@@ -88,7 +84,6 @@ function updatePasswordStrength() {
     }
 }
 
-// Real-time password match indicator
 function updatePasswordMatch() {
     const password = document.getElementById('password').value;
     const retype = document.getElementById('retype').value;
@@ -107,7 +102,6 @@ function updatePasswordMatch() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Add username validation indicator
     const usernameInput = document.getElementById('username');
     const usernameIndicator = document.createElement('div');
     usernameIndicator.id = 'usernameIndicator';
@@ -115,7 +109,6 @@ document.addEventListener('DOMContentLoaded', () => {
     usernameInput.parentNode.appendChild(usernameIndicator);
     usernameInput.addEventListener('input', updateUsernameValidation);
     
-    // Add email validation indicator
     const emailInput = document.getElementById('email');
     const emailIndicator = document.createElement('div');
     emailIndicator.id = 'emailIndicator';
@@ -123,7 +116,6 @@ document.addEventListener('DOMContentLoaded', () => {
     emailInput.parentNode.appendChild(emailIndicator);
     emailInput.addEventListener('input', updateEmailValidation);
     
-    // Add password strength indicator
     const passwordInput = document.getElementById('password');
     const strengthDiv = document.createElement('div');
     strengthDiv.id = 'passwordStrength';
@@ -131,14 +123,13 @@ document.addEventListener('DOMContentLoaded', () => {
     passwordInput.parentNode.appendChild(strengthDiv);
     passwordInput.addEventListener('input', updatePasswordStrength);
     
-    // Add password match indicator
     const retypeInput = document.getElementById('retype');
     const matchIndicator = document.createElement('div');
     matchIndicator.id = 'passwordMatch';
     matchIndicator.style.cssText = 'margin-top: 0.5rem; font-size: 0.85rem;';
     retypeInput.parentNode.appendChild(matchIndicator);
     retypeInput.addEventListener('input', updatePasswordMatch);
-    passwordInput.addEventListener('input', updatePasswordMatch); // Also update when password changes
+    passwordInput.addEventListener('input', updatePasswordMatch);
 });
 
 document.getElementById('signupForm').addEventListener('submit', async function(e) {
@@ -150,25 +141,21 @@ document.getElementById('signupForm').addEventListener('submit', async function(
     const retype = document.getElementById('retype').value;
     const msg = document.getElementById('signupMessage');
     
-    // Clear previous message
     msg.textContent = '';
     msg.style.color = '';
     
-    // Validate username
     if (!validateUsername(username)) {
         msg.textContent = '✗ Username must be 3-30 characters (letters, numbers, underscore, hyphen only)';
         msg.style.color = 'red';
         return;
     }
     
-    // Validate email
     if (!validateEmail(email)) {
         msg.textContent = '✗ Please enter a valid email address';
         msg.style.color = 'red';
         return;
     }
     
-    // Validate password strength
     const passwordErrors = validatePassword(password);
     if (passwordErrors.length > 0) {
         msg.textContent = `✗ Password must contain: ${passwordErrors.join(', ')}`;
@@ -176,7 +163,6 @@ document.getElementById('signupForm').addEventListener('submit', async function(
         return;
     }
     
-    // Validate passwords match
     if (password !== retype) {
         msg.textContent = '✗ Passwords do not match';
         msg.style.color = 'red';
@@ -184,7 +170,6 @@ document.getElementById('signupForm').addEventListener('submit', async function(
     }
     
     try {
-        // Show loading state
         msg.textContent = 'Creating your account...';
         msg.style.color = '#667eea';
         
@@ -201,13 +186,19 @@ document.getElementById('signupForm').addEventListener('submit', async function(
             msg.style.color = 'green';
             msg.style.fontWeight = 'bold';
             
-            // Redirect after 800ms
+            sessionStorage.setItem('showLoginBanner', 'true');
+            
             setTimeout(() => {
                 window.location.href = 'login.html';
             }, 800);
         } else {
-            msg.textContent = '✗ ' + (data.error || 'Signup failed. Please try again.');
-            msg.style.color = 'red';
+            if (data.rateLimited) {
+                msg.textContent = `⏱️ ${data.error}`;
+                msg.style.color = '#ffc107';
+            } else {
+                msg.textContent = '✗ ' + (data.error || 'Signup failed. Please try again.');
+                msg.style.color = 'red';
+            }
         }
     } catch (error) {
         msg.textContent = '✗ Network error. Please check if the server is running.';
