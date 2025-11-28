@@ -490,3 +490,60 @@ body.user-theme {
 .auth-container p { text-align: center; margin-top: 1rem; }
 .auth-container a { color: #667eea; text-decoration: underline; }
 #loginMessage { text-align: center; margin-top: 1rem; font-weight: 500; }
+
+.settings-container {
+    max-width: 500px;
+    margin: 60px auto;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+    padding: 2rem;
+}
+.settings-container h2 {
+    text-align: center;
+    color: #667eea;
+    margin-bottom: 1.5rem;
+}
+.user-info {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+    border-left: 4px solid #667eea;
+}
+.user-info p {
+    margin: 0.5rem 0;
+    color: #333;
+}
+.user-info strong {
+    color: #667eea;
+}
+.back-link {
+    display: inline-block;
+    margin-top: 1rem;
+    color: #667eea;
+    text-decoration: none;
+    font-weight: 600;
+}
+.back-link:hover {
+    text-decoration: underline;
+}
+.settings-container h3 {
+    color: #667eea;
+    margin-bottom: 1rem;
+}
+.settings-container button {
+    width: 100%;
+    padding: 0.8rem;
+    background: #667eea;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 1rem;
+    margin-top: 0.5rem;
+}
+.settings-container button:hover {
+    background: #5568d3;
+}
