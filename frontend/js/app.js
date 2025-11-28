@@ -29,7 +29,7 @@ let sessionTimeoutId = null;
 let lastActivityTime = Date.now();
 
 // SESSION TIMEOUT: 3 minutes of inactivity
-const SESSION_TIMEOUT = 3 * 60 * 1000; // 3 minutes in milliseconds
+const SESSION_TIMEOUT = 3 * 60 * 1000;
 
 // Notification system (5 seconds display)
 function showNotification(message, type = 'info') {
@@ -99,13 +99,11 @@ function initSessionTimeout() {
         sessionTimeoutId = setTimeout(handleSessionTimeout, SESSION_TIMEOUT);
     };
     
-    // Reset timer on user activity
     document.addEventListener('click', resetTimer);
     document.addEventListener('keypress', resetTimer);
     document.addEventListener('scroll', resetTimer);
     document.addEventListener('mousemove', resetTimer);
     
-    // Start the initial timer
     resetTimer();
 }
 
@@ -148,10 +146,8 @@ document.addEventListener('DOMContentLoaded', () => {
     loadNotes();
     updateRoleUI();
     
-    // Initialize session timeout monitoring
     initSessionTimeout();
     
-    // Show welcome message if just logged in
     const justLoggedIn = sessionStorage.getItem('justLoggedIn');
     if (justLoggedIn === 'true') {
         showNotification(`✓ Login successful! Welcome back, ${currentUser.username}!`, 'success');

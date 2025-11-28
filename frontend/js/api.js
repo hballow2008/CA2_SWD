@@ -1,22 +1,37 @@
 const API_URL = 'http://localhost:5001/api';
 
-// Helper to get stored username (if any)
-function getStoredUsername() {
+// Helper to get stored user info
+function getStoredUser() {
     try {
         const s = localStorage.getItem('currentUser');
         if (!s) return null;
-        return JSON.parse(s).username;
+        return JSON.parse(s);
     } catch (e) {
         return null;
     }
+}
+
+// Helper to get stored username
+function getStoredUsername() {
+    const user = getStoredUser();
+    return user ? user.username : null;
+}
+
+// Helper to get stored email
+function getStoredEmail() {
+    const user = getStoredUser();
+    return user ? user.email : null;
 }
 
 const api = {
     getNotes: async (role = 'user') => {
         try {
             const username = getStoredUsername();
+            const email = getStoredEmail();
+            
             let url = `${API_URL}/notes?role=${encodeURIComponent(role)}`;
-            if (role === 'user' && username) url += `&username=${encodeURIComponent(username)}`;
+            if (username) url += `&username=${encodeURIComponent(username)}`;
+            if (email) url += `&email=${encodeURIComponent(email)}`;
             
             const response = await fetch(url);
             const data = await response.json();
@@ -40,8 +55,11 @@ const api = {
     getNote: async (id, role = 'user') => {
         try {
             const username = getStoredUsername();
+            const email = getStoredEmail();
+            
             let url = `${API_URL}/notes/${encodeURIComponent(id)}?role=${encodeURIComponent(role)}`;
-            if (role === 'user' && username) url += `&username=${encodeURIComponent(username)}`;
+            if (username) url += `&username=${encodeURIComponent(username)}`;
+            if (email) url += `&email=${encodeURIComponent(email)}`;
             
             const response = await fetch(url);
             const data = await response.json();
@@ -65,8 +83,11 @@ const api = {
     createNote: async (title, content, role) => {
         try {
             const username = getStoredUsername();
+            const email = getStoredEmail();
+            
             const body = { title, content, role };
-            if (role === 'user' && username) body.username = username;
+            if (username) body.username = username;
+            if (email) body.email = email;
             
             const response = await fetch(`${API_URL}/notes`, {
                 method: 'POST',
@@ -95,8 +116,11 @@ const api = {
     updateNote: async (id, title, content, role = 'user') => {
         try {
             const username = getStoredUsername();
+            const email = getStoredEmail();
+            
             const body = { title, content, role };
-            if (role === 'user' && username) body.username = username;
+            if (username) body.username = username;
+            if (email) body.email = email;
             
             const response = await fetch(`${API_URL}/notes/${encodeURIComponent(id)}`, {
                 method: 'PUT',
@@ -125,8 +149,11 @@ const api = {
     deleteNote: async (id, role = 'user') => {
         try {
             const username = getStoredUsername();
+            const email = getStoredEmail();
+            
             let url = `${API_URL}/notes/${encodeURIComponent(id)}?role=${encodeURIComponent(role)}`;
-            if (role === 'user' && username) url += `&username=${encodeURIComponent(username)}`;
+            if (username) url += `&username=${encodeURIComponent(username)}`;
+            if (email) url += `&email=${encodeURIComponent(email)}`;
             
             const response = await fetch(url, { method: 'DELETE' });
             const data = await response.json();
@@ -150,8 +177,11 @@ const api = {
     searchNotes: async (query, role = 'user') => {
         try {
             const username = getStoredUsername();
+            const email = getStoredEmail();
+            
             let url = `${API_URL}/notes/search/${encodeURIComponent(query)}?role=${encodeURIComponent(role)}`;
-            if (role === 'user' && username) url += `&username=${encodeURIComponent(username)}`;
+            if (username) url += `&username=${encodeURIComponent(username)}`;
+            if (email) url += `&email=${encodeURIComponent(email)}`;
             
             const response = await fetch(url);
             const data = await response.json();

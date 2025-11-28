@@ -135,12 +135,15 @@ function initializeDatabase() {
 }
 
 function validateSession(req, res, next) {
-  // Get username/email from query params OR body
-  const { username, email } = req.query || req.body || {};
+  // Get username/email from BOTH query params AND body
+  let username = req.query.username || req.body.username;
+  let email = req.query.email || req.body.email;
   
-  // If neither username nor email is provided
+  console.log('🔍 Session validation - username:', username, 'email:', email); // Debug
+  
+  // If neither is provided, return error
   if (!email && !username) {
-    console.log('❌ No credentials provided'); // Debug log
+    console.log('❌ No credentials provided');
     return res.status(401).json({ 
       error: 'Session expired. Please login again.',
       sessionExpired: true 
@@ -148,12 +151,11 @@ function validateSession(req, res, next) {
   }
 
   const identifier = email || username;
-  
-  console.log('✅ Validating session for:', identifier); // Debug log
+  console.log('🔍 Looking for user:', identifier); // Debug
   
   db.get('SELECT * FROM users WHERE email = ? OR username = ?', [identifier, identifier], (err, user) => {
     if (err) {
-      console.log('❌ Database error:', err); // Debug log
+      console.log('❌ Database error:', err);
       return res.status(500).json({ 
         error: 'Server error',
         sessionExpired: false 
@@ -161,12 +163,14 @@ function validateSession(req, res, next) {
     }
     
     if (!user) {
-      console.log('❌ User not found:', identifier); // Debug log
+      console.log('❌ User not found:', identifier);
       return res.status(401).json({ 
         error: 'Session expired. Please login again.',
         sessionExpired: true 
       });
     }
+
+    console.log('✅ User found:', user.username, 'Role:', user.role); // Debug
 
     // Check if account is locked
     if (user.locked_until) {
@@ -175,7 +179,7 @@ function validateSession(req, res, next) {
       
       if (lockedUntil > now) {
         const minutesLeft = Math.ceil((lockedUntil - now) / 1000 / 60);
-        console.log('❌ Account locked:', identifier); // Debug log
+        console.log('❌ Account locked');
         return res.status(403).json({ 
           error: `Account locked. Try again in ${minutesLeft} minute(s).`,
           accountLocked: true,
@@ -187,7 +191,7 @@ function validateSession(req, res, next) {
       }
     }
 
-    console.log('✅ Session valid for:', user.username); // Debug log
+    console.log('✅ Session valid for:', user.username);
     req.user = user;
     next();
   });
@@ -274,6 +278,8 @@ app.post('/api/login', rateLimit('login', 5, 15 * 60 * 1000), (req, res) => {
     if (match) {
       db.run('UPDATE users SET failed_attempts = 0, locked_until = NULL, last_login = CURRENT_TIMESTAMP WHERE id = ?', [user.id]);
       
+      console.log('✅ Login successful:', user.username, 'Role:', user.role); // Debug
+      
       return res.json({ 
         success: true, 
         user: { username: user.username, email: user.email, role: user.role, lastLogin: user.last_login } 
@@ -339,7 +345,7 @@ app.post('/api/change-password', rateLimit('passwordChange', 5, 60 * 60 * 1000),
 
     const newHash = bcrypt.hashSync(newPassword, 10);
     db.run('UPDATE users SET password = ? WHERE id = ?', [newHash, user.id], (err) => {
-      if (err) return res.status(500).json({ success: false, error: 'Failed to update password.' });
+      if (err) return res.status(500).json({ success: failed, error: 'Failed to update password.' });
       
       return res.json({ success: true, message: 'Password changed successfully!' });
     });
@@ -358,7 +364,9 @@ function canModifyNote(role, createdBy, username) {
 }
 
 app.get('/api/notes', validateSession, (req, res) => {
-  const { role, username } = req.query;
+  const { role, username, email } = req.query;
+  
+  console.log('📝 GET /api/notes - role:', role, 'username:', username, 'email:', email); // Debug
   
   if (!role || (role !== 'admin' && role !== 'user')) {
     return res.status(400).json({ error: 'Invalid or missing role' });
@@ -375,8 +383,11 @@ app.get('/api/notes', validateSession, (req, res) => {
   
   query += ' ORDER BY created_at DESC';
   
+  console.log('📝 SQL Query:', query, 'Params:', params); // Debug
+  
   db.all(query, params, (err, notes) => {
     if (err) return res.status(500).json({ error: err.message });
+    console.log('📝 Found', notes.length, 'notes'); // Debug
     res.json(notes);
   });
 });

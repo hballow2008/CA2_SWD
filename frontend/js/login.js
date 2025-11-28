@@ -61,8 +61,6 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
         
         const data = await res.json();
         
-        console.log('Login response:', data); // Debug log
-        
         if (data.success) {
             msg.textContent = '✓ Login successful! Redirecting...';
             msg.style.color = 'green';
@@ -74,14 +72,8 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
             // Set flag to show welcome message
             sessionStorage.setItem('justLoggedIn', 'true');
             
-            console.log('User stored:', localStorage.getItem('currentUser')); // Debug log
-            console.log('Redirecting to index.html in 1.5 seconds...'); // Debug log
-            
-            // Redirect after 1.5 seconds to allow user to see success message
-            // The 5-second notification will show on the dashboard
-            setTimeout(() => {
-                window.location.href = 'index.html';
-            }, 1500);
+            // Redirect immediately
+            window.location.href = 'index.html';
             
         } else {
             // Handle errors
