@@ -164,9 +164,6 @@ Using Live Server (VS Code Extension):**
 - Login and remain inactive for 3 minutes
 - Expected: Warning notification, then redirect to login
 
-**5. Password Policy Test:**
-- Try password: `weak` - Expected: Error
-- Try password: `Strong@123` - Expected: Success
 
 ### Key Testing Findings
 - ✅ SQL injection attempts blocked by parameterized queries
