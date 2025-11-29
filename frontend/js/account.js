@@ -56,6 +56,14 @@ function updatePasswordMatch() {
     }
 }
 
+function getCSRFToken() {
+    try {
+        return sessionStorage.getItem('csrfToken');
+    } catch (e) {
+        return null;
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     const storedUser = localStorage.getItem('currentUser');
     if (!storedUser) {
@@ -119,9 +127,24 @@ document.getElementById('changePasswordForm').addEventListener('submit', async f
         msg.textContent = 'Changing password...';
         msg.style.color = '#667eea';
         
+        const csrfToken = getCSRFToken();
+        if (!csrfToken) {
+            msg.textContent = '✗ Security token missing. Please login again.';
+            msg.style.color = 'red';
+            setTimeout(() => {
+                localStorage.removeItem('currentUser');
+                sessionStorage.removeItem('csrfToken');
+                window.location.href = 'login.html';
+            }, 2000);
+            return;
+        }
+        
         const res = await fetch('http://localhost:5001/api/change-password', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': csrfToken
+            },
             body: JSON.stringify({
                 email: currentUser.email,
                 oldPassword: currentPassword,
@@ -130,6 +153,17 @@ document.getElementById('changePasswordForm').addEventListener('submit', async f
         });
         
         const data = await res.json();
+        
+        if (data.csrfError) {
+            msg.textContent = '✗ Security token error. Please login again.';
+            msg.style.color = 'red';
+            setTimeout(() => {
+                localStorage.removeItem('currentUser');
+                sessionStorage.removeItem('csrfToken');
+                window.location.href = 'login.html';
+            }, 2000);
+            return;
+        }
         
         if (data.success) {
             msg.textContent = '✓ Password changed successfully! Redirecting to login...';
@@ -140,6 +174,7 @@ document.getElementById('changePasswordForm').addEventListener('submit', async f
             
             setTimeout(() => {
                 localStorage.removeItem('currentUser');
+                sessionStorage.removeItem('csrfToken');
                 window.location.href = 'login.html';
             }, 2000);
         } else {

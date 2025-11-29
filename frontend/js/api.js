@@ -1,6 +1,5 @@
 const API_URL = 'http://localhost:5001/api';
 
-// Helper to get stored user info
 function getStoredUser() {
     try {
         const s = localStorage.getItem('currentUser');
@@ -11,16 +10,39 @@ function getStoredUser() {
     }
 }
 
-// Helper to get stored username
 function getStoredUsername() {
     const user = getStoredUser();
     return user ? user.username : null;
 }
 
-// Helper to get stored email
 function getStoredEmail() {
     const user = getStoredUser();
     return user ? user.email : null;
+}
+
+function getCSRFToken() {
+    try {
+        return sessionStorage.getItem('csrfToken');
+    } catch (e) {
+        return null;
+    }
+}
+
+function getHeaders() {
+    const headers = { 'Content-Type': 'application/json' };
+    const csrfToken = getCSRFToken();
+    
+    if (csrfToken) {
+        headers['X-CSRF-Token'] = csrfToken;
+    }
+    
+    return headers;
+}
+
+function handleCSRFError() {
+    sessionStorage.removeItem('csrfToken');
+    localStorage.removeItem('currentUser');
+    window.location.href = 'login.html';
 }
 
 const api = {
@@ -33,10 +55,14 @@ const api = {
             if (username) url += `&username=${encodeURIComponent(username)}`;
             if (email) url += `&email=${encodeURIComponent(email)}`;
             
-            const response = await fetch(url);
+            const response = await fetch(url, { headers: getHeaders() });
             const data = await response.json();
             
-            // Check for session expired
+            if (data.csrfError) {
+                handleCSRFError();
+                throw new Error('CSRF token error');
+            }
+            
             if (data.sessionExpired || data.error?.includes('Session')) {
                 throw new Error('Session expired');
             }
@@ -61,10 +87,14 @@ const api = {
             if (username) url += `&username=${encodeURIComponent(username)}`;
             if (email) url += `&email=${encodeURIComponent(email)}`;
             
-            const response = await fetch(url);
+            const response = await fetch(url, { headers: getHeaders() });
             const data = await response.json();
             
-            // Check for session expired
+            if (data.csrfError) {
+                handleCSRFError();
+                throw new Error('CSRF token error');
+            }
+            
             if (data.sessionExpired || data.error?.includes('Session')) {
                 throw new Error('Session expired');
             }
@@ -91,13 +121,17 @@ const api = {
             
             const response = await fetch(`${API_URL}/notes`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getHeaders(),
                 body: JSON.stringify(body)
             });
             
             const data = await response.json();
             
-            // Check for session expired
+            if (data.csrfError) {
+                handleCSRFError();
+                throw new Error('CSRF token error');
+            }
+            
             if (data.sessionExpired || data.error?.includes('Session')) {
                 throw new Error('Session expired');
             }
@@ -124,13 +158,17 @@ const api = {
             
             const response = await fetch(`${API_URL}/notes/${encodeURIComponent(id)}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getHeaders(),
                 body: JSON.stringify(body)
             });
             
             const data = await response.json();
             
-            // Check for session expired
+            if (data.csrfError) {
+                handleCSRFError();
+                throw new Error('CSRF token error');
+            }
+            
             if (data.sessionExpired || data.error?.includes('Session')) {
                 throw new Error('Session expired');
             }
@@ -155,10 +193,17 @@ const api = {
             if (username) url += `&username=${encodeURIComponent(username)}`;
             if (email) url += `&email=${encodeURIComponent(email)}`;
             
-            const response = await fetch(url, { method: 'DELETE' });
+            const response = await fetch(url, { 
+                method: 'DELETE',
+                headers: getHeaders()
+            });
             const data = await response.json();
             
-            // Check for session expired
+            if (data.csrfError) {
+                handleCSRFError();
+                throw new Error('CSRF token error');
+            }
+            
             if (data.sessionExpired || data.error?.includes('Session')) {
                 throw new Error('Session expired');
             }
@@ -183,10 +228,14 @@ const api = {
             if (username) url += `&username=${encodeURIComponent(username)}`;
             if (email) url += `&email=${encodeURIComponent(email)}`;
             
-            const response = await fetch(url);
+            const response = await fetch(url, { headers: getHeaders() });
             const data = await response.json();
             
-            // Check for session expired
+            if (data.csrfError) {
+                handleCSRFError();
+                throw new Error('CSRF token error');
+            }
+            
             if (data.sessionExpired || data.error?.includes('Session')) {
                 throw new Error('Session expired');
             }

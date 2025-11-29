@@ -2,11 +2,76 @@ const express = require('express');
 const cors = require('cors');
 const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const app = express();
 const PORT = 5001;
 
 app.use(cors());
 app.use(express.json());
+
+// CSRF Token Store
+const csrfTokenStore = new Map();
+
+// Clean old CSRF tokens every 10 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [token, data] of csrfTokenStore.entries()) {
+    if (data.expiresAt < now) {
+      csrfTokenStore.delete(token);
+    }
+  }
+}, 10 * 60 * 1000);
+
+// Generate CSRF Token
+function generateCSRFToken(email) {
+  const token = crypto.randomBytes(32).toString('hex');
+  const expiresAt = Date.now() + (60 * 60 * 1000); // 1 hour expiry
+  csrfTokenStore.set(token, { email, expiresAt });
+  return token;
+}
+
+// Validate CSRF Token Middleware
+function validateCSRFToken(req, res, next) {
+  const token = req.headers['x-csrf-token'];
+  const email = req.body.email || req.query.email;
+  
+  if (!token) {
+    return res.status(403).json({ 
+      success: false,
+      error: 'CSRF token missing',
+      csrfError: true 
+    });
+  }
+  
+  const storedData = csrfTokenStore.get(token);
+  
+  if (!storedData) {
+    return res.status(403).json({ 
+      success: false,
+      error: 'Invalid or expired CSRF token',
+      csrfError: true 
+    });
+  }
+  
+  if (storedData.expiresAt < Date.now()) {
+    csrfTokenStore.delete(token);
+    return res.status(403).json({ 
+      success: false,
+      error: 'CSRF token expired',
+      csrfError: true 
+    });
+  }
+  
+  if (email && storedData.email !== email.toLowerCase().trim()) {
+    return res.status(403).json({ 
+      success: false,
+      error: 'CSRF token mismatch',
+      csrfError: true 
+    });
+  }
+  
+  next();
+}
 
 // Rate limiting storage
 const rateLimitStore = { login: {}, signup: {}, passwordChange: {} };
@@ -135,15 +200,10 @@ function initializeDatabase() {
 }
 
 function validateSession(req, res, next) {
-  // Get username/email from BOTH query params AND body
   let username = req.query.username || req.body.username;
   let email = req.query.email || req.body.email;
   
-  console.log('🔍 Session validation - username:', username, 'email:', email); // Debug
-  
-  // If neither is provided, return error
   if (!email && !username) {
-    console.log('❌ No credentials provided');
     return res.status(401).json({ 
       error: 'Session expired. Please login again.',
       sessionExpired: true 
@@ -151,11 +211,9 @@ function validateSession(req, res, next) {
   }
 
   const identifier = email || username;
-  console.log('🔍 Looking for user:', identifier); // Debug
   
   db.get('SELECT * FROM users WHERE email = ? OR username = ?', [identifier, identifier], (err, user) => {
     if (err) {
-      console.log('❌ Database error:', err);
       return res.status(500).json({ 
         error: 'Server error',
         sessionExpired: false 
@@ -163,35 +221,28 @@ function validateSession(req, res, next) {
     }
     
     if (!user) {
-      console.log('❌ User not found:', identifier);
       return res.status(401).json({ 
         error: 'Session expired. Please login again.',
         sessionExpired: true 
       });
     }
 
-    console.log('✅ User found:', user.username, 'Role:', user.role); // Debug
-
-    // Check if account is locked
     if (user.locked_until) {
       const lockedUntil = new Date(user.locked_until);
       const now = new Date();
       
       if (lockedUntil > now) {
         const minutesLeft = Math.ceil((lockedUntil - now) / 1000 / 60);
-        console.log('❌ Account locked');
         return res.status(403).json({ 
           error: `Account locked. Try again in ${minutesLeft} minute(s).`,
           accountLocked: true,
           minutesLeft
         });
       } else {
-        // Unlock account
         db.run('UPDATE users SET locked_until = NULL, failed_attempts = 0 WHERE id = ?', [user.id]);
       }
     }
 
-    console.log('✅ Session valid for:', user.username);
     req.user = user;
     next();
   });
@@ -237,7 +288,7 @@ app.post('/api/signup', rateLimit('signup', 3, 60 * 60 * 1000), (req, res) => {
   });
 });
 
-// Login
+// Login - Returns CSRF token
 app.post('/api/login', rateLimit('login', 5, 15 * 60 * 1000), (req, res) => {
   const { email, password } = req.body;
   
@@ -278,11 +329,18 @@ app.post('/api/login', rateLimit('login', 5, 15 * 60 * 1000), (req, res) => {
     if (match) {
       db.run('UPDATE users SET failed_attempts = 0, locked_until = NULL, last_login = CURRENT_TIMESTAMP WHERE id = ?', [user.id]);
       
-      console.log('✅ Login successful:', user.username, 'Role:', user.role); // Debug
+      // Generate CSRF token
+      const csrfToken = generateCSRFToken(emailLower);
       
       return res.json({ 
         success: true, 
-        user: { username: user.username, email: user.email, role: user.role, lastLogin: user.last_login } 
+        user: { 
+          username: user.username, 
+          email: user.email, 
+          role: user.role, 
+          lastLogin: user.last_login 
+        },
+        csrfToken: csrfToken
       });
     } else {
       const newFailedAttempts = (user.failed_attempts || 0) + 1;
@@ -312,8 +370,8 @@ app.post('/api/login', rateLimit('login', 5, 15 * 60 * 1000), (req, res) => {
   });
 });
 
-// Change Password
-app.post('/api/change-password', rateLimit('passwordChange', 5, 60 * 60 * 1000), (req, res) => {
+// Change Password - CSRF Protected
+app.post('/api/change-password', validateCSRFToken, rateLimit('passwordChange', 5, 60 * 60 * 1000), (req, res) => {
   const { email, oldPassword, newPassword } = req.body;
 
   if (!email || !oldPassword || !newPassword) {
@@ -345,14 +403,21 @@ app.post('/api/change-password', rateLimit('passwordChange', 5, 60 * 60 * 1000),
 
     const newHash = bcrypt.hashSync(newPassword, 10);
     db.run('UPDATE users SET password = ? WHERE id = ?', [newHash, user.id], (err) => {
-      if (err) return res.status(500).json({ success: failed, error: 'Failed to update password.' });
+      if (err) return res.status(500).json({ success: false, error: 'Failed to update password.' });
+      
+      // Invalidate CSRF tokens for this user
+      for (const [token, data] of csrfTokenStore.entries()) {
+        if (data.email === emailLower) {
+          csrfTokenStore.delete(token);
+        }
+      }
       
       return res.json({ success: true, message: 'Password changed successfully!' });
     });
   });
 });
 
-// Notes routes
+// Notes routes - CSRF Protected
 function canAccessNote(role, createdBy, username) {
   if (role === 'admin') return true;
   return createdBy === username;
@@ -363,10 +428,8 @@ function canModifyNote(role, createdBy, username) {
   return createdBy === username;
 }
 
-app.get('/api/notes', validateSession, (req, res) => {
-  const { role, username, email } = req.query;
-  
-  console.log('📝 GET /api/notes - role:', role, 'username:', username, 'email:', email); // Debug
+app.get('/api/notes', validateCSRFToken, validateSession, (req, res) => {
+  const { role, username } = req.query;
   
   if (!role || (role !== 'admin' && role !== 'user')) {
     return res.status(400).json({ error: 'Invalid or missing role' });
@@ -383,16 +446,13 @@ app.get('/api/notes', validateSession, (req, res) => {
   
   query += ' ORDER BY created_at DESC';
   
-  console.log('📝 SQL Query:', query, 'Params:', params); // Debug
-  
   db.all(query, params, (err, notes) => {
     if (err) return res.status(500).json({ error: err.message });
-    console.log('📝 Found', notes.length, 'notes'); // Debug
     res.json(notes);
   });
 });
 
-app.get('/api/notes/:id', validateSession, (req, res) => {
+app.get('/api/notes/:id', validateCSRFToken, validateSession, (req, res) => {
   const { id } = req.params;
   const { role, username } = req.query;
   
@@ -417,7 +477,7 @@ app.get('/api/notes/:id', validateSession, (req, res) => {
   });
 });
 
-app.post('/api/notes', validateSession, (req, res) => {
+app.post('/api/notes', validateCSRFToken, validateSession, (req, res) => {
   const { title, content, role, username } = req.body;
 
   if (!role || (role !== 'admin' && role !== 'user')) {
@@ -447,7 +507,7 @@ app.post('/api/notes', validateSession, (req, res) => {
   );
 });
 
-app.put('/api/notes/:id', validateSession, (req, res) => {
+app.put('/api/notes/:id', validateCSRFToken, validateSession, (req, res) => {
   const { id } = req.params;
   const { title, content, role, username } = req.body;
  
@@ -485,7 +545,7 @@ app.put('/api/notes/:id', validateSession, (req, res) => {
   });
 });
 
-app.delete('/api/notes/:id', validateSession, (req, res) => {
+app.delete('/api/notes/:id', validateCSRFToken, validateSession, (req, res) => {
   const { id } = req.params;
   const { role, username } = req.query;
   
@@ -513,7 +573,7 @@ app.delete('/api/notes/:id', validateSession, (req, res) => {
   });
 });
 
-app.get('/api/notes/search/:query', validateSession, (req, res) => {
+app.get('/api/notes/search/:query', validateCSRFToken, validateSession, (req, res) => {
   const { query } = req.params;
   const { role, username } = req.query;
   
@@ -543,9 +603,10 @@ app.get('/api/notes/search/:query', validateSession, (req, res) => {
 });
 
 app.get('/', (req, res) => {
-  res.json({ message: 'Notes API Server', status: 'running' });
+  res.json({ message: 'Notes API Server with CSRF Protection', status: 'running' });
 });
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
+  console.log('✅ CSRF Protection enabled');
 });

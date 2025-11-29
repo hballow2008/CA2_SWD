@@ -107,28 +107,30 @@ function initSessionTimeout() {
     resetTimer();
 }
 
-// Handle session timeout
+// Handle session timeout - 5 second delay before redirect
 function handleSessionTimeout() {
     const inactiveTime = Date.now() - lastActivityTime;
     
     if (inactiveTime >= SESSION_TIMEOUT) {
         localStorage.removeItem('currentUser');
+        sessionStorage.removeItem('csrfToken');
         showNotification('Your session has expired due to inactivity. Please login again.', 'warning');
         
         setTimeout(() => {
             window.location.href = 'login.html';
-        }, 2000);
+        }, 5000);
     }
 }
 
 // Handle session expired from server
 function handleSessionExpired() {
     localStorage.removeItem('currentUser');
+    sessionStorage.removeItem('csrfToken');
     showNotification('Your session has expired. Please login again.', 'warning');
     
     setTimeout(() => {
         window.location.href = 'login.html';
-    }, 2000);
+    }, 5000);
 }
 
 // Initialize app
@@ -165,6 +167,7 @@ function displayUserInfo() {
 function logout() {
     if (confirm('Are you sure you want to logout?')) {
         localStorage.removeItem('currentUser');
+        sessionStorage.removeItem('csrfToken');
         showNotification('✓ Logout successful! See you soon.', 'success');
         setTimeout(() => {
             window.location.href = 'login.html';

@@ -9,7 +9,6 @@ function sanitizeInput(input, maxLength = 100) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Check if coming from signup
     const showBanner = sessionStorage.getItem('showLoginBanner');
     if (showBanner === 'true') {
         const msg = document.getElementById('loginMessage');
@@ -26,8 +25,10 @@ document.addEventListener('DOMContentLoaded', () => {
 document.getElementById('loginForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     
-    const email = sanitizeInput(document.getElementById('username').value, 100).toLowerCase();
-    const password = document.getElementById('password').value;
+    const emailInput = document.getElementById('username');
+    const passwordInput = document.getElementById('password');
+    const email = sanitizeInput(emailInput.value, 100).toLowerCase();
+    const password = passwordInput.value;
     const msg = document.getElementById('loginMessage');
     
     // Clear previous message
@@ -66,17 +67,24 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
             msg.style.color = 'green';
             msg.style.fontWeight = 'bold';
             
-            // Store user info in localStorage
+            // Store user info
             localStorage.setItem('currentUser', JSON.stringify(data.user));
             
-            // Set flag to show welcome message
+            // Store CSRF token
+            if (data.csrfToken) {
+                sessionStorage.setItem('csrfToken', data.csrfToken);
+            }
+            
             sessionStorage.setItem('justLoggedIn', 'true');
             
-            // Redirect immediately
+            // Clear inputs only on success
+            emailInput.value = '';
+            passwordInput.value = '';
+            
             window.location.href = 'index.html';
             
         } else {
-            // Handle errors
+            // DO NOT clear inputs on error - keep them for retry
             if (data.accountLocked) {
                 msg.textContent = `🔒 ${data.error}`;
                 msg.style.color = '#dc3545';
