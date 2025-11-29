@@ -276,7 +276,7 @@ app.post('/api/signup', rateLimit('signup', 3, 60 * 60 * 1000), (req, res) => {
   db.get('SELECT id FROM users WHERE email = ?', [emailLower], (err, row) => {
     if (err) return res.status(500).json({ success: false, error: 'Server error' });
     if (row) return res.json({ success: false, error: 'Email already registered' });
-
+    // Hash password and store user
     const hash = bcrypt.hashSync(password, 10);
     db.run('INSERT INTO users (username, email, password, role) VALUES (?,?,?,?)', 
       [cleanUsername, emailLower, hash, 'user'], 
@@ -323,7 +323,7 @@ app.post('/api/login', rateLimit('login', 5, 15 * 60 * 1000), (req, res) => {
         user.failed_attempts = 0;
       }
     }
-
+    // verify password  
     const match = bcrypt.compareSync(password, user.password);
     
     if (match) {
