@@ -204,9 +204,7 @@ npm install
 # 2. Start backend server
 npm start
 
-# 3. Start frontend (in new terminal)
-cd frontend
-# Use Live Server 
+# 3. Use Live Server to view the .html files
 
 # 4. Login with test account or create a user
 ```
