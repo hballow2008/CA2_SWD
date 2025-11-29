@@ -35,7 +35,7 @@ CA2_SWD/
 │   ├── index.html         # Main notes interface
 │   ├── login.html         # User login page
 │   ├── signup.html        # User registration page
-│   ├── account.html       # Account settings page
+│   ├── account.html       # Password change page
 │   ├── css/
 │   │   └── style.css      # Styling
 │   └── js/
