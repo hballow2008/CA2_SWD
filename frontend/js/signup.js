@@ -49,7 +49,7 @@ function showMessage(msg, text, color, background = '', autoDismiss = true) {
             msg.style.color = '';
             msg.style.background = '';
             msg.style.padding = '';
-        }, 15000);
+        }, 5000);
     }
 }
 
@@ -197,9 +197,10 @@ document.getElementById('signupForm').addEventListener('submit', async function(
             
             sessionStorage.setItem('showLoginBanner', 'true');
             
+            // Delay redirect by 2 seconds so user sees success message
             setTimeout(() => {
                 window.location.href = 'login.html';
-            }, 1500);
+            }, 2000);
         } else {
             if (data.rateLimited) {
                 showMessage(msg, `⏱️ ${data.error}`, '#856404', '#fff3cd', true);

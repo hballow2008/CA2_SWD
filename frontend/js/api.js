@@ -6,6 +6,7 @@ function getStoredUser() {
         if (!s) return null;
         return JSON.parse(s);
     } catch (e) {
+        console.error('Error getting stored user:', e);
         return null;
     }
 }
@@ -24,6 +25,7 @@ function getCSRFToken() {
     try {
         return sessionStorage.getItem('csrfToken');
     } catch (e) {
+        console.error('Error getting CSRF token:', e);
         return null;
     }
 }
@@ -40,6 +42,7 @@ function getHeaders() {
 }
 
 function handleCSRFError() {
+    console.log('CSRF error detected, clearing session and redirecting to login');
     sessionStorage.removeItem('csrfToken');
     localStorage.removeItem('currentUser');
     window.location.href = 'login.html';
@@ -51,12 +54,23 @@ const api = {
             const username = getStoredUsername();
             const email = getStoredEmail();
             
+            console.log('Getting notes with:', { role, username, email, hasCSRF: !!getCSRFToken() });
+            
+            if (!email && !username) {
+                console.error('No user credentials found');
+                throw new Error('Session expired');
+            }
+            
             let url = `${API_URL}/notes?role=${encodeURIComponent(role)}`;
             if (username) url += `&username=${encodeURIComponent(username)}`;
             if (email) url += `&email=${encodeURIComponent(email)}`;
             
+            console.log('Fetching notes from:', url);
+            
             const response = await fetch(url, { headers: getHeaders() });
             const data = await response.json();
+            
+            console.log('Notes response:', data);
             
             if (data.csrfError) {
                 handleCSRFError();
@@ -82,6 +96,10 @@ const api = {
         try {
             const username = getStoredUsername();
             const email = getStoredEmail();
+            
+            if (!email && !username) {
+                throw new Error('Session expired');
+            }
             
             let url = `${API_URL}/notes/${encodeURIComponent(id)}?role=${encodeURIComponent(role)}`;
             if (username) url += `&username=${encodeURIComponent(username)}`;
@@ -115,9 +133,15 @@ const api = {
             const username = getStoredUsername();
             const email = getStoredEmail();
             
+            if (!email && !username) {
+                throw new Error('Session expired');
+            }
+            
             const body = { title, content, role };
             if (username) body.username = username;
             if (email) body.email = email;
+            
+            console.log('Creating note with:', body);
             
             const response = await fetch(`${API_URL}/notes`, {
                 method: 'POST',
@@ -151,6 +175,10 @@ const api = {
         try {
             const username = getStoredUsername();
             const email = getStoredEmail();
+            
+            if (!email && !username) {
+                throw new Error('Session expired');
+            }
             
             const body = { title, content, role };
             if (username) body.username = username;
@@ -189,6 +217,10 @@ const api = {
             const username = getStoredUsername();
             const email = getStoredEmail();
             
+            if (!email && !username) {
+                throw new Error('Session expired');
+            }
+            
             let url = `${API_URL}/notes/${encodeURIComponent(id)}?role=${encodeURIComponent(role)}`;
             if (username) url += `&username=${encodeURIComponent(username)}`;
             if (email) url += `&email=${encodeURIComponent(email)}`;
@@ -223,6 +255,10 @@ const api = {
         try {
             const username = getStoredUsername();
             const email = getStoredEmail();
+            
+            if (!email && !username) {
+                throw new Error('Session expired');
+            }
             
             let url = `${API_URL}/notes/search/${encodeURIComponent(query)}?role=${encodeURIComponent(role)}`;
             if (username) url += `&username=${encodeURIComponent(username)}`;

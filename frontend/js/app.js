@@ -31,7 +31,7 @@ let lastActivityTime = Date.now();
 // SESSION TIMEOUT: 3 minutes of inactivity
 const SESSION_TIMEOUT = 3 * 60 * 1000;
 
-// Notification system (5 seconds display)
+// Notification system (15 seconds display)
 function showNotification(message, type = 'info') {
     const existing = document.querySelector('.app-notification');
     if (existing) existing.remove();
@@ -135,33 +135,69 @@ function handleSessionExpired() {
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
-    const storedUser = localStorage.getItem('currentUser');
-    if (!storedUser) {
-        window.location.href = 'login.html';
-        return;
-    }
+    console.log('App initializing...');
     
-    currentUser = JSON.parse(storedUser);
-    currentRole = currentUser.role;
-    
-    displayUserInfo();
-    loadNotes();
-    updateRoleUI();
-    
-    initSessionTimeout();
-    
-    const justLoggedIn = sessionStorage.getItem('justLoggedIn');
-    if (justLoggedIn === 'true') {
-        showNotification(`✓ Login successful! Welcome back, ${currentUser.username}!`, 'success');
-        sessionStorage.removeItem('justLoggedIn');
-    }
+    // Small delay to ensure storage from previous page is available
+    setTimeout(() => {
+        const storedUser = localStorage.getItem('currentUser');
+        const csrfToken = sessionStorage.getItem('csrfToken');
+        
+        console.log('Stored user:', storedUser);
+        console.log('CSRF token exists:', !!csrfToken);
+        
+        if (!storedUser) {
+            console.log('No user found, redirecting to login...');
+            window.location.href = 'login.html';
+            return;
+        }
+        
+        if (!csrfToken) {
+            console.error('No CSRF token found! Redirecting to login...');
+            localStorage.removeItem('currentUser');
+            window.location.href = 'login.html';
+            return;
+        }
+        
+        try {
+            currentUser = JSON.parse(storedUser);
+            currentRole = currentUser.role;
+            
+            console.log('Current user:', currentUser);
+            console.log('Current role:', currentRole);
+            
+            displayUserInfo();
+            updateRoleUI();
+            
+            // Load notes after UI is ready
+            loadNotes();
+            
+            initSessionTimeout();
+            
+            const justLoggedIn = sessionStorage.getItem('justLoggedIn');
+            if (justLoggedIn === 'true') {
+                showNotification(`✓ Login successful! Welcome back, ${currentUser.username}!`, 'success');
+                sessionStorage.removeItem('justLoggedIn');
+            }
+        } catch (error) {
+            console.error('Error initializing app:', error);
+            showNotification('Error loading app. Please login again.', 'error');
+            setTimeout(() => {
+                localStorage.removeItem('currentUser');
+                sessionStorage.removeItem('csrfToken');
+                window.location.href = 'login.html';
+            }, 2000);
+        }
+    }, 100);
 });
 
 function displayUserInfo() {
     const userDisplay = document.getElementById('userDisplay');
     const appTitle = document.getElementById('appTitle');
-    userDisplay.textContent = `Welcome, ${currentUser.username}!`;
-    appTitle.textContent = `${currentUser.username}'s Note-Taking App`;
+    
+    if (userDisplay && appTitle && currentUser) {
+        userDisplay.textContent = `Welcome, ${currentUser.username}!`;
+        appTitle.textContent = `${currentUser.username}'s Note-Taking App`;
+    }
 }
 
 function logout() {
@@ -195,26 +231,30 @@ function updateRoleUI() {
         body.className = 'user-theme';
         footer.className = 'app-footer user-footer';
     }
-
-    renderNotes(allNotes);
 }
 
 async function loadNotes() {
+    console.log('Loading notes for role:', currentRole);
+    
     try {
         const notesList = document.getElementById('notesList');
         notesList.innerHTML = '<p class="loading">Loading notes...</p>';
         
         allNotes = await api.getNotes(currentRole);
+        console.log('Notes loaded:', allNotes.length);
+        
         renderNotes(allNotes);
     } catch (error) {
-        if (error.message.includes('session') || error.message.includes('Session')) {
+        console.error('Error loading notes:', error);
+        
+        if (error.message.includes('session') || error.message.includes('Session') || error.message.includes('CSRF')) {
             handleSessionExpired();
             return;
         }
         
         document.getElementById('notesList').innerHTML = 
             '<p class="no-notes">Error loading notes. Make sure the backend is running!</p>';
-        showNotification('Failed to load notes. Check your connection.', 'error');
+        showNotification('Failed to load notes: ' + error.message, 'error');
     }
 }
 
@@ -299,7 +339,9 @@ async function saveNote() {
         cancelEdit();
         loadNotes();
     } catch (error) {
-        if (error.message.includes('session') || error.message.includes('Session')) {
+        console.error('Error saving note:', error);
+        
+        if (error.message.includes('session') || error.message.includes('Session') || error.message.includes('CSRF')) {
             handleSessionExpired();
             return;
         }
@@ -321,7 +363,9 @@ async function editNote(noteId) {
         
         showNotification('Editing note: ' + note.title, 'info');
     } catch (error) {
-        if (error.message.includes('session') || error.message.includes('Session')) {
+        console.error('Error loading note:', error);
+        
+        if (error.message.includes('session') || error.message.includes('Session') || error.message.includes('CSRF')) {
             handleSessionExpired();
             return;
         }
@@ -339,7 +383,9 @@ async function deleteNote(noteId) {
         showNotification('✓ Note deleted successfully!', 'success');
         loadNotes();
     } catch (error) {
-        if (error.message.includes('session') || error.message.includes('Session')) {
+        console.error('Error deleting note:', error);
+        
+        if (error.message.includes('session') || error.message.includes('Session') || error.message.includes('CSRF')) {
             handleSessionExpired();
             return;
         }
@@ -379,7 +425,9 @@ async function searchNotes() {
             showNotification(`Found ${results.length} note(s) matching "${escapeHTML(query)}"`, 'success');
         }
     } catch (error) {
-        if (error.message.includes('session') || error.message.includes('Session')) {
+        console.error('Error searching notes:', error);
+        
+        if (error.message.includes('session') || error.message.includes('Session') || error.message.includes('CSRF')) {
             handleSessionExpired();
             return;
         }

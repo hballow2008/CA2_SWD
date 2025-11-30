@@ -22,7 +22,7 @@ function showMessage(msg, text, color, background = '', autoDismiss = true) {
             msg.style.color = '';
             msg.style.background = '';
             msg.style.padding = '';
-        }, 15000);
+        }, 3000);
     }
 }
 
@@ -67,15 +67,21 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
         
         const data = await res.json();
         
+        console.log('Login response:', data); // Debug log
+        
         if (data.success) {
             showMessage(msg, '✓ Login successful! Redirecting...', 'green', '', false);
             
-            // Store user info
+            // Store user info in localStorage
             localStorage.setItem('currentUser', JSON.stringify(data.user));
+            console.log('User stored in localStorage:', data.user);
             
-            // Store CSRF token
+            // Store CSRF token in sessionStorage - THIS IS CRITICAL
             if (data.csrfToken) {
                 sessionStorage.setItem('csrfToken', data.csrfToken);
+                console.log('CSRF token stored:', data.csrfToken.substring(0, 20) + '...');
+            } else {
+                console.error('WARNING: No CSRF token in login response!');
             }
             
             sessionStorage.setItem('justLoggedIn', 'true');
@@ -84,6 +90,7 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
             emailInput.value = '';
             passwordInput.value = '';
             
+            // Immediate redirect - storage happens synchronously
             window.location.href = 'index.html';
             
         } else {
