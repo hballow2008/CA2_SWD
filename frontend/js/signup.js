@@ -49,7 +49,7 @@ function showMessage(msg, text, color, background = '', autoDismiss = true) {
             msg.style.color = '';
             msg.style.background = '';
             msg.style.padding = '';
-        }, 5000);
+        }, 15000);
     }
 }
 
@@ -158,9 +158,6 @@ document.getElementById('signupForm').addEventListener('submit', async function(
     const password = document.getElementById('password').value;
     const retype = document.getElementById('retype').value;
     const msg = document.getElementById('signupMessage');
-    
-    msg.textContent = '';
-    msg.style.color = '';
     
     if (!validateUsername(username)) {
         showMessage(msg, '✗ Username must be 3-30 characters (letters, numbers, underscore, hyphen only)', 'red', '', true);

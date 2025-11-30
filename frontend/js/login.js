@@ -22,7 +22,7 @@ function showMessage(msg, text, color, background = '', autoDismiss = true) {
             msg.style.color = '';
             msg.style.background = '';
             msg.style.padding = '';
-        }, 5000);
+        }, 15000);
     }
 }
 
@@ -43,12 +43,6 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
     const email = sanitizeInput(emailInput.value, 100).toLowerCase();
     const password = passwordInput.value;
     const msg = document.getElementById('loginMessage');
-    
-    // Clear previous message
-    msg.textContent = '';
-    msg.style.color = '';
-    msg.style.background = '';
-    msg.style.padding = '';
     
     // Validate inputs
     if (!email || !password) {

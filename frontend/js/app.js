@@ -82,11 +82,11 @@ function showNotification(message, type = 'info') {
     
     document.body.appendChild(notification);
     
-    // Auto remove after 5 SECONDS
+    // Auto remove after 15 SECONDS
     setTimeout(() => {
         notification.style.animation = 'slideOut 0.3s ease-out';
         setTimeout(() => notification.remove(), 300);
-    }, 5000);
+    }, 15000);
 }
 
 // Initialize session timeout monitoring
