@@ -219,7 +219,7 @@ npm start
 | Password Hashing | ✅ | bcryptjs with 10 salt rounds |
 | Rate Limiting | ✅ | IP-based throttling on auth endpoints |
 | Account Lockout | ✅ | 3 failed attempts = 5 minute lock |
-| Session Timeout | ✅ | 3 minutes inactivity |
+| Session Timeout | ✅ | 5 minutes inactivity |
 | Password Policy | ✅ | Strong requirements enforced |
 | Input Validation | ✅ | Client and server-side |
 | Role-Based Access | ✅ | Admin and User permissions |
