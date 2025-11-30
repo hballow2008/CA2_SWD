@@ -161,7 +161,7 @@ Using Live Server (VS Code Extension):**
 - Expected: Account locked after 3 attempts, rate limit after 5 attempts
 
 **4. Session Timeout Test:**
-- Login and remain inactive for 3 minutes
+- Login and remain inactive for 5 minutes
 - Expected: Warning notification, then redirect to login
 
 
