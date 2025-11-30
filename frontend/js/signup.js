@@ -35,6 +35,24 @@ function sanitizeInput(input, maxLength = 100) {
     return input.trim().substring(0, maxLength);
 }
 
+function showMessage(msg, text, color, background = '', autoDismiss = true) {
+    msg.textContent = text;
+    msg.style.color = color;
+    msg.style.background = background;
+    msg.style.padding = background ? '0.75rem' : '';
+    msg.style.borderRadius = background ? '6px' : '';
+    msg.style.fontWeight = 'bold';
+    
+    if (autoDismiss) {
+        setTimeout(() => {
+            msg.textContent = '';
+            msg.style.color = '';
+            msg.style.background = '';
+            msg.style.padding = '';
+        }, 5000);
+    }
+}
+
 function updateEmailValidation() {
     const email = document.getElementById('email').value.trim();
     const emailIndicator = document.getElementById('emailIndicator');
@@ -145,33 +163,29 @@ document.getElementById('signupForm').addEventListener('submit', async function(
     msg.style.color = '';
     
     if (!validateUsername(username)) {
-        msg.textContent = '✗ Username must be 3-30 characters (letters, numbers, underscore, hyphen only)';
-        msg.style.color = 'red';
+        showMessage(msg, '✗ Username must be 3-30 characters (letters, numbers, underscore, hyphen only)', 'red', '', true);
         return;
     }
     
     if (!validateEmail(email)) {
-        msg.textContent = '✗ Please enter a valid email address';
-        msg.style.color = 'red';
+        showMessage(msg, '✗ Please enter a valid email address', 'red', '', true);
         return;
     }
     
     const passwordErrors = validatePassword(password);
     if (passwordErrors.length > 0) {
-        msg.textContent = `✗ Password must contain: ${passwordErrors.join(', ')}`;
-        msg.style.color = 'red';
+        showMessage(msg, `✗ Password must contain: ${passwordErrors.join(', ')}`, 'red', '', true);
         return;
     }
     
     if (password !== retype) {
-        msg.textContent = '✗ Passwords do not match';
-        msg.style.color = 'red';
+        showMessage(msg, '✗ Passwords do not match', 'red', '', true);
         return;
     }
     
     try {
-        msg.textContent = 'Creating your account...';
-        msg.style.color = '#667eea';
+        showMessage(msg, 'Creating your account...', '#667eea', '', false);
+        msg.style.fontWeight = 'normal';
         
         const res = await fetch('http://localhost:5001/api/signup', {
             method: 'POST',
@@ -182,27 +196,22 @@ document.getElementById('signupForm').addEventListener('submit', async function(
         const data = await res.json();
         
         if (data.success) {
-            msg.textContent = '✓ Signup successful! Redirecting to login...';
-            msg.style.color = 'green';
-            msg.style.fontWeight = 'bold';
+            showMessage(msg, '✓ Signup successful! Redirecting to login...', 'green', '#d4edda', false);
             
             sessionStorage.setItem('showLoginBanner', 'true');
             
             setTimeout(() => {
                 window.location.href = 'login.html';
-            }, 800);
+            }, 1500);
         } else {
             if (data.rateLimited) {
-                msg.textContent = `⏱️ ${data.error}`;
-                msg.style.color = '#ffc107';
+                showMessage(msg, `⏱️ ${data.error}`, '#856404', '#fff3cd', true);
             } else {
-                msg.textContent = '✗ ' + (data.error || 'Signup failed. Please try again.');
-                msg.style.color = 'red';
+                showMessage(msg, '✗ ' + (data.error || 'Signup failed. Please try again.'), 'red', '#f8d7da', true);
             }
         }
     } catch (error) {
-        msg.textContent = '✗ Network error. Please check if the server is running.';
-        msg.style.color = 'red';
+        showMessage(msg, '✗ Network error. Please check if the server is running.', 'red', '#f8d7da', true);
         console.error('Signup error:', error);
     }
 });
