@@ -154,7 +154,7 @@ Using Live Server (VS Code Extension):**
 
 **2. XSS Protection Test:**
 - Create note with content: `<script>alert('XSS')</script>`
-- Expected: Script tag displayed as text, not executed
+- Expected: Script tag not displayed/rendered, not executed
 
 **3. Rate Limiting Test:**
 - Attempt 6 login failures in 15 minutes
@@ -217,9 +217,9 @@ npm start
 | SQL Injection Prevention | ✅ | Parameterized queries throughout |
 | XSS Protection | ✅ | DOMPurify sanitization + HTML escaping |
 | Password Hashing | ✅ | bcryptjs with 10 salt rounds |
-| Rate Limiting | ✅ | IP-based throttling on auth endpoints |
+| Rate Limiting | ✅ | IP-based throttling on endpoints |
 | Account Lockout | ✅ | 3 failed attempts = 5 minute lock |
 | Session Timeout | ✅ | 5 minutes inactivity |
 | Password Policy | ✅ | Strong requirements enforced |
 | Input Validation | ✅ | Client and server-side |
-| Role-Based Access | ✅ | Admin and User permissions |
+| Role-Based Access | ✅ | Admin and User roles |
